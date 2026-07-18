@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0e0f12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>FrameRef</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Material+Symbols+Outlined&display=block">
+<style>
+:root{
+  --bg:#0e0f12; --panel:#16181d; --border:#26282f;
+  --text:#e8eaed; --muted:#9aa0a6; --accent:#4c8dff; --rec:#ff453a;
+  --mono:ui-monospace,"SF Mono",Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:Inter,-apple-system,"PingFang TC",sans-serif;
+  overflow:hidden;overscroll-behavior:none;
+  height:100vh;height:100dvh;
+  -webkit-user-select:none;user-select:none;
+}
+.material-symbols-outlined{font-size:24px;line-height:1;user-select:none;}
+.hidden{display:none!important;}
+button{font-family:inherit;color:var(--text);background:none;border:none;cursor:pointer;touch-action:manipulation;}
+
+/* screens */
+.screen{position:fixed;inset:0;}
+#app{height:100vh;height:100dvh;}
+
+/* S1 empty state */
+.s1{display:flex;align-items:center;justify-content:center;
+  padding:24px calc(24px + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left));}
+.s1-inner{display:flex;flex-direction:column;gap:16px;width:100%;max-width:320px;align-items:stretch;}
+.big-btn{display:flex;align-items:center;justify-content:center;gap:10px;
+  min-height:64px;border:1px solid var(--border);border-radius:14px;background:var(--panel);
+  font-size:17px;font-weight:500;}
+.big-btn .material-symbols-outlined{font-size:26px;color:var(--accent);}
+.hint{color:var(--muted);font-size:12.5px;line-height:1.5;text-align:center;margin-top:6px;}
+
+/* S2 camera */
+.s2{background:#000;}
+.cam-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000;}
+.cam-top{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;
+  padding:calc(12px + env(safe-area-inset-top)) 16px 12px;z-index:2;}
+.cam-bottom{position:absolute;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;
+  padding:20px 32px calc(24px + env(safe-area-inset-bottom));z-index:2;}
+.cam-top .sbtn,.cam-bottom .sbtn{background:rgba(0,0,0,.4);border-radius:50%;}
+.rec-time{font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:15px;
+  background:rgba(0,0,0,.45);padding:5px 12px;border-radius:20px;display:flex;align-items:center;gap:6px;}
+.rec-time::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--rec);animation:blink 1s steps(1) infinite;}
+@keyframes blink{50%{opacity:.15;}}
+.spacer-btn{width:48px;}
+.cd-label{font-size:15px;font-weight:600;}
+#btnCountdown.active{color:var(--accent);}
+/* REC round button; recording -> inner square + red ring */
+.rec-btn{width:74px;height:74px;border-radius:50%;background:rgba(255,255,255,.15);
+  border:4px solid #fff;display:flex;align-items:center;justify-content:center;}
+.rec-dot{width:56px;height:56px;border-radius:50%;background:var(--rec);transition:border-radius .15s,width .15s,height .15s;}
+.rec-btn.recording{border-color:var(--rec);}
+.rec-btn.recording .rec-dot{width:30px;height:30px;border-radius:7px;}
+.cam-err{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:calc(100% - 48px);max-width:340px;background:var(--panel);border:1px solid var(--border);
+  border-radius:12px;padding:18px 20px;font-size:14px;line-height:1.6;color:var(--text);z-index:3;text-align:center;}
+.big-count{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  font-size:120px;font-weight:600;font-variant-numeric:tabular-nums;text-shadow:0 2px 20px rgba(0,0,0,.6);z-index:3;}
+
+/* S3 shell */
+.s3{display:flex;flex-direction:column;height:100vh;height:100dvh;
+  padding-bottom:env(safe-area-inset-bottom);}
+.topbar{display:flex;align-items:center;justify-content:space-between;
+  padding:calc(8px + env(safe-area-inset-top)) 12px 8px;flex:0 0 auto;}
+.brand{font-weight:600;font-size:15px;letter-spacing:.3px;}
+.top-actions{display:flex;align-items:center;gap:6px;}
+.chip{min-height:44px;padding:0 14px;border:1px solid var(--border);border-radius:22px;background:var(--panel);
+  font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;display:inline-flex;align-items:center;gap:3px;}
+.chip.active{border-color:var(--accent);color:var(--accent);}
+#btnFps.auto{border-color:var(--accent);color:var(--accent);}
+.fps-unit{font-size:10px;color:var(--muted);}
+.sbtn{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--text);}
+.sbtn.active{color:var(--accent);}
+.fps-pop{position:absolute;top:calc(60px + env(safe-area-inset-top));right:12px;z-index:10;
+  background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:6px;
+  display:flex;flex-direction:column;gap:2px;}
+.fps-choice{min-height:44px;padding:0 22px;border-radius:8px;font-size:14px;font-variant-numeric:tabular-nums;text-align:center;}
+.fps-choice.active{color:var(--accent);background:rgba(76,141,255,.12);}
+
+/* stage */
+.stage{flex:1 1 auto;position:relative;background:#000;overflow:hidden;
+  touch-action:none;-webkit-touch-callout:none;min-height:0;}
+.mirror-wrap,.zoom-wrap{position:absolute;inset:0;transform-origin:center center;will-change:transform;}
+#video{width:100%;height:100%;object-fit:contain;background:#000;display:block;}
+.hud{position:absolute;top:10px;left:10px;z-index:2;background:rgba(0,0,0,.5);
+  border-radius:10px;padding:6px 10px;pointer-events:none;}
+.frame-num{font-family:var(--mono);font-size:26px;font-weight:600;line-height:1.1;letter-spacing:1px;}
+.timecode{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums;}
+.stage-msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 18px;font-size:14px;z-index:3;}
+
+/* scrub */
+.scrub-wrap{flex:0 0 auto;padding:6px 12px 2px;}
+.slider{-webkit-appearance:none;appearance:none;width:100%;height:44px;background:transparent;touch-action:manipulation;}
+.slider::-webkit-slider-runnable-track{height:4px;background:var(--border);border-radius:2px;}
+.slider::-moz-range-track{height:4px;background:var(--border);border-radius:2px;}
+.slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;border-radius:50%;
+  background:var(--accent);margin-top:-8px;box-shadow:0 0 0 6px rgba(76,141,255,.12);}
+.slider::-moz-range-thumb{width:20px;height:20px;border:none;border-radius:50%;background:var(--accent);}
+.ab-markers{position:relative;height:16px;margin:0 10px;}
+.ab-marker{position:absolute;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;}
+.ab-tri{width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:5px solid var(--accent);}
+.ab-lbl{font-size:9px;color:var(--accent);font-family:var(--mono);line-height:1.3;white-space:nowrap;}
+
+/* transport */
+.transport{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:5px;padding:4px 12px;}
+.tbtn{flex:1 1 0;min-width:0;height:48px;border-radius:11px;background:var(--panel);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;}
+.tbtn.ab{max-width:46px;color:var(--muted);}
+.tbtn.ab.set{color:var(--accent);border-color:var(--accent);}
+.tbtn.play{flex:1.4 1 0;background:var(--accent);border-color:var(--accent);}
+.tbtn.play .material-symbols-outlined{font-size:30px;color:#fff;}
+
+/* secondary */
+.secondary{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:4px 12px 6px;}
+.ab-text{font-size:11px;color:var(--muted);font-family:var(--mono);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;flex:0 1 auto;}
+.ab-clear{color:var(--accent);padding:0 3px;cursor:pointer;}
+.secondary .spacer{flex:1 1 auto;}
+#btnSpeed{min-width:44px;justify-content:center;}
+
+/* takes */
+.takes-row{flex:0 0 auto;display:flex;gap:8px;overflow-x:auto;padding:4px 12px 8px;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none;}
+.takes-row::-webkit-scrollbar{display:none;}
+.take-chip{flex:0 0 auto;display:flex;align-items:center;gap:6px;height:44px;padding:0 6px 0 14px;
+  border:1px solid var(--border);border-radius:22px;background:var(--panel);font-size:12.5px;white-space:nowrap;}
+.take-chip.active{border-color:var(--accent);color:var(--accent);}
+.take-name{font-variant-numeric:tabular-nums;}
+.take-x{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:12px;color:var(--muted);}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- S1 空狀態 -->
+  <div id="screenS1" class="screen s1">
+    <div class="s1-inner">
+      <button id="btnRec1" class="big-btn"><span class="material-symbols-outlined">videocam</span>錄影</button>
+      <button id="btnLoad1" class="big-btn"><span class="material-symbols-outlined">upload</span>載入影片</button>
+      <p class="hint">高格數建議用原生相機拍(可用慢動作 240fps),再從圖庫載入</p>
+    </div>
+  </div>
+
+  <!-- S2 相機 -->
+  <div id="screenS2" class="screen s2 hidden">
+    <video id="camVideo" class="cam-video" muted playsinline webkit-playsinline autoplay></video>
+    <div id="camErr" class="cam-err hidden"></div>
+    <div id="bigCount" class="big-count hidden"></div>
+    <div class="cam-top">
+      <button id="btnCamClose" class="sbtn"><span class="material-symbols-outlined">close</span></button>
+      <div id="recTime" class="rec-time hidden">0:00</div>
+      <button id="btnCountdown" class="sbtn"><span class="cd-label">3s</span></button>
+    </div>
+    <div class="cam-bottom">
+      <button id="btnFlip" class="sbtn"><span class="material-symbols-outlined">flip_camera_ios</span></button>
+      <button id="btnRec" class="rec-btn"><span class="rec-dot"></span></button>
+      <span class="spacer-btn"></span>
+    </div>
+  </div>
+
+  <!-- S3 播放 -->
+  <div id="screenS3" class="screen s3 hidden">
+    <div class="topbar">
+      <div class="brand">FrameRef</div>
+      <div class="top-actions">
+        <button id="btnFps" class="chip">30<span class="fps-unit">fps</span></button>
+        <button id="btnMirror" class="sbtn"><span class="material-symbols-outlined">flip</span></button>
+        <button id="btnNew" class="sbtn"><span class="material-symbols-outlined">add</span></button>
+      </div>
+    </div>
+    <div id="fpsPop" class="fps-pop hidden"></div>
+
+    <div id="stage" class="stage">
+      <div id="mirrorWrap" class="mirror-wrap">
+        <div id="zoomWrap" class="zoom-wrap">
+          <video id="video" playsinline webkit-playsinline preload="auto"></video>
+        </div>
+      </div>
+      <div class="hud">
+        <div id="frameNum" class="frame-num">#0000</div>
+        <div id="timecode" class="timecode">0:00.00 / 0:00.00</div>
+      </div>
+      <div id="stageMsg" class="stage-msg hidden"></div>
+    </div>
+
+    <div class="scrub-wrap">
+      <input id="slider" class="slider" type="range" min="0" max="0" step="1" value="0">
+      <div id="abMarkers" class="ab-markers"></div>
+    </div>
+
+    <div class="transport">
+      <button id="btnA" class="tbtn ab">A</button>
+      <button id="btnBack5" class="tbtn"><span class="material-symbols-outlined">keyboard_double_arrow_left</span></button>
+      <button id="btnBack1" class="tbtn"><span class="material-symbols-outlined">chevron_left</span></button>
+      <button id="btnPlay" class="tbtn play"><span class="material-symbols-outlined">play_arrow</span></button>
+      <button id="btnFwd1" class="tbtn"><span class="material-symbols-outlined">chevron_right</span></button>
+      <button id="btnFwd5" class="tbtn"><span class="material-symbols-outlined">keyboard_double_arrow_right</span></button>
+      <button id="btnB" class="tbtn ab">B</button>
+    </div>
+
+    <div class="secondary">
+      <button id="btnLoop" class="sbtn"><span class="material-symbols-outlined">repeat</span></button>
+      <span id="abText" class="ab-text hidden"></span>
+      <button id="btnSpeed" class="chip">1×</button>
+      <span class="spacer"></span>
+      <button id="btnCam" class="sbtn"><span class="material-symbols-outlined">videocam</span></button>
+      <button id="btnLoad2" class="sbtn"><span class="material-symbols-outlined">upload_file</span></button>
+      <button id="btnSave" class="sbtn"><span class="material-symbols-outlined">download</span></button>
+    </div>
+
+    <div id="takesRow" class="takes-row hidden"></div>
+  </div>
+
+  <input id="fileInput" type="file" accept="video/*" hidden>
+</div>
+
+<script>
+"use strict";
+/* ======================= STATE ======================= */
+const $ = id => document.getElementById(id);
+const video = $("video"), stage = $("stage"), mirrorWrap = $("mirrorWrap"),
+      zoomWrap = $("zoomWrap"), slider = $("slider");
+
+let scr = "S1";
+let fps = 30, totalFrames = 1, frameTarget = 0;
+let fpsManual = false;
+let mirror = false, playing = false;
+let zoom = 1, panX = 0, panY = 0;
+let hudOverride = null, scrubbing = false;
+
+// seek 合流:只記最新目標,seeked 回來後若又變了再 seek
+let seekTarget = null, seeking = false;
+
+// A-B
+let fA = null, fB = null, tA = null, tB = null, loopEnabled = false;
+
+// speed
+const SPEEDS = [1, 0.5, 0.25], SPEED_LABELS = ["1×", "½×", "¼×"];
+let speedIdx = 0;
+
+// takes
+let takes = [];            // {url, blob, name, dur}
+let currentTake = -1;
+
+// camera
+let stream = null, recorder = null, chunks = [], facing = "environment";
+let recTimerIv = null, recStart = 0, countdown3 = false, cdIv = null;
+
+// fps auto-detect
+let fpsSamples = [];
+const FPS_TABLE = [24, 25, 30, 50, 60, 120, 240];
+const FPS_CHOICES = [24, 25, 30, 50, 60, 120, 240];
+const rvfcSupported = "requestVideoFrameCallback" in HTMLVideoElement.prototype;
+let rvfcId = 0;
+
+let wakeLock = null;
+
+/* ======================= UTIL ======================= */
+const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+
+function fmtTC(frame){
+  const s = frame / fps;
+  const m = Math.floor(s / 60), sec = Math.floor(s % 60), cc = Math.floor((s % 1) * 100);
+  return m + ":" + String(sec).padStart(2, "0") + "." + String(cc).padStart(2, "0");
+}
+function fmtDur(sec){
+  if (!sec || !isFinite(sec)) return "0:00";
+  const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+  return m + ":" + String(s).padStart(2, "0");
+}
+function tsStamp(){
+  const d = new Date(), p = n => String(n).padStart(2, "0");
+  return "" + d.getFullYear() + p(d.getMonth()+1) + p(d.getDate()) + "_" +
+         p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds());
+}
+const currentFrame = () => clamp(Math.floor(video.currentTime * fps), 0, Math.max(0, totalFrames - 1));
+
+/* ======================= SCREENS ======================= */
+function showScreen(s){
+  scr = s;
+  $("screenS1").classList.toggle("hidden", s !== "S1");
+  $("screenS2").classList.toggle("hidden", s !== "S2");
+  $("screenS3").classList.toggle("hidden", s !== "S3");
+}
+
+/* ======================= CAMERA (S2) ======================= */
+async function enterCamera(){
+  showScreen("S2");
+  hideCamErr();
+  // 非 secure context / 無 mediaDevices:進 S2 前就擋,不呼叫 getUserMedia
+  if (!window.isSecureContext){
+    showCamErr("頁面內錄影需要 HTTPS;請用「載入影片」,或等部署到 HTTPS 網址");
+    return;
+  }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    showCamErr("此瀏覽器不支援頁面內相機,請改用「載入影片」");
+    return;
+  }
+  await startStream();
+}
+async function startStream(){
+  stopStream();
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: facing, width: { ideal: 1920 }, frameRate: { ideal: 60 } },
+      audio: true
+    });
+    $("camVideo").srcObject = stream;
+    $("camVideo").play().catch(()=>{});
+    // 前鏡頭預覽 CSS 鏡像;錄出的檔不鏡像
+    $("camVideo").style.transform = facing === "user" ? "scaleX(-1)" : "none";
+    hideCamErr();
+  }catch(err){
+    if (err.name === "NotAllowedError")
+      showCamErr("相機權限被拒——到 iOS 設定 > Safari > 相機 允許,或改用「載入影片」");
+    else
+      showCamErr("相機錯誤:" + err.name);
+  }
+}
+function stopStream(){
+  if (stream){ stream.getTracks().forEach(t => t.stop()); stream = null; }
+}
+function showCamErr(msg){ const el = $("camErr"); el.textContent = msg; el.classList.remove("hidden"); }
+function hideCamErr(){ $("camErr").classList.add("hidden"); }
+
+function pickMime(){
+  // iOS 產 mp4、桌面 Chrome 產 webm — cascade 必做
+  const cands = ["video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9", "video/webm"];
+  if (!window.MediaRecorder) return "";
+  for (const c of cands) if (MediaRecorder.isTypeSupported(c)) return c;
+  return "";
+}
+function onRecPress(){
+  if (recorder && recorder.state === "recording"){ stopRec(); return; }
+  if (countdown3) runCountdown(startRec);
+  else startRec();
+}
+function runCountdown(done){
+  let n = 3; showBigCount(n);
+  cdIv = setInterval(() => {
+    n--;
+    if (n <= 0){ clearInterval(cdIv); cdIv = null; hideBigCount(); done(); }
+    else showBigCount(n);
+  }, 1000);
+}
+function showBigCount(n){ const el = $("bigCount"); el.textContent = n; el.classList.remove("hidden"); }
+function hideBigCount(){ $("bigCount").classList.add("hidden"); }
+
+function startRec(){
+  if (!stream) return;
+  chunks = [];
+  const mime = pickMime();
+  try{
+    recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+  }catch(e){ showCamErr("錄影不支援:" + e.name); return; }
+  recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+  recorder.onstop = () => {
+    const type = recorder.mimeType || mime || "video/mp4";
+    onNewRecording(new Blob(chunks, { type }));
+  };
+  recorder.start();          // 不給 timeslice
+  recStart = Date.now();
+  recTimerIv = setInterval(updateRecTimer, 200);
+  setRecUI(true);
+}
+function stopRec(){
+  if (recorder && recorder.state !== "inactive") recorder.stop();
+  clearInterval(recTimerIv); recTimerIv = null;
+  setRecUI(false);
+}
+function updateRecTimer(){
+  const s = (Date.now() - recStart) / 1000;
+  $("recTime").textContent = fmtDur(s);
+}
+function setRecUI(on){
+  $("btnRec").classList.toggle("recording", on);
+  $("recTime").classList.toggle("hidden", !on);
+  if (on) $("recTime").textContent = "0:00";
+}
+function onNewRecording(blob){
+  stopStream();
+  addTake(blob, null);          // null name -> "Take N"
+  loadTake(takes.length - 1);   // 切到 S3、停第 0 幀
+}
+
+/* ======================= TAKES ======================= */
+function addTake(blob, name){
+  const url = URL.createObjectURL(blob);
+  takes.push({ url, blob, name: name || ("Take " + (takes.length + 1)), dur: 0 });
+  renderTakes();
+}
+function loadTake(i){
+  if (i < 0 || i >= takes.length) return;
+  currentTake = i;
+  resetABAndZoom();
+  // 載入新 take 重置 fps 偵測與手動旗標
+  fpsManual = false; fpsSamples = []; fps = 30; updateFpsChip();
+  if (!video.paused) video.pause();
+  // video.load() 會吞掉進行中的 seek(不發 seeked),不重置這三個會讓逐格永久卡死
+  seeking = false; seekTarget = null; hudOverride = null;
+  hideStageMsg();
+  video.src = takes[i].url;
+  video.load();
+  showScreen("S3");
+  renderTakes();
+}
+function deleteTake(i){
+  URL.revokeObjectURL(takes[i].url);           // 刪除即 revoke,無洩漏
+  const wasCurrent = i === currentTake;
+  takes.splice(i, 1);
+  if (takes.length === 0){
+    currentTake = -1;
+    video.removeAttribute("src"); video.load();
+    renderTakes(); showScreen("S1"); return;
+  }
+  if (wasCurrent){ currentTake = clamp(i, 0, takes.length - 1); loadTake(currentTake); }
+  else { if (i < currentTake) currentTake--; renderTakes(); }
+}
+function renderTakes(){
+  if (takes.length === 0){ $("takesRow").classList.add("hidden"); $("takesRow").innerHTML = ""; return; }
+  const row = $("takesRow");
+  row.classList.remove("hidden");
+  row.innerHTML = "";
+  takes.forEach((t, i) => {
+    const chip = document.createElement("div");
+    chip.className = "take-chip" + (i === currentTake ? " active" : "");
+    const nm = document.createElement("span");
+    nm.className = "take-name"; nm.textContent = t.name + " · " + fmtDur(t.dur);
+    const x = document.createElement("span");
+    x.className = "take-x"; x.textContent = "✕";
+    nm.addEventListener("click", () => { if (i !== currentTake) loadTake(i); }); // 切換時 loadTake 會 pause+A/B 重置
+    x.addEventListener("click", e => { e.stopPropagation(); deleteTake(i); });
+    chip.appendChild(nm); chip.appendChild(x);
+    row.appendChild(chip);
+  });
+}
+function saveTake(){
+  if (currentTake < 0) return;
+  const t = takes[currentTake];
+  const ext = t.blob.type.includes("webm") ? "webm" : "mp4";
+  const a = document.createElement("a");
+  a.href = t.url; a.download = "frameref_" + tsStamp() + "." + ext;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+/* ======================= ENGINE (逐格 / seek) ======================= */
+function seekToFrame(idx){
+  if (!video.duration || !isFinite(video.duration)) return;
+  idx = clamp(idx, 0, totalFrames - 1);
+  frameTarget = idx;
+  hudOverride = idx; updateHUD();
+  let t = (idx + 0.5) / fps;                 // 取幀中點避免邊界抖動
+  t = Math.min(t, video.duration - 0.001);
+  seekTarget = t;
+  if (!seeking){ seeking = true; doSeek(); }
+}
+function doSeek(){
+  if (seekTarget == null){ seeking = false; return; }
+  const t = seekTarget; seekTarget = null;
+  video.currentTime = t;                     // 不用 fastSeek(會 snap keyframe)
+}
+function step(n){
+  if (!video.paused) video.pause();
+  // 播放中 frameTarget 會過時 → 非 seek 狀態用 live frame 當基準;連打(seek 中)才用 frameTarget
+  const base = seeking ? frameTarget : currentFrame();
+  seekToFrame(base + n);
+}
+function setFps(f){
+  fps = f;
+  if (video.duration && isFinite(video.duration)){
+    totalFrames = Math.max(1, Math.floor(video.duration * fps));
+    slider.max = totalFrames - 1;
+  }
+  frameTarget = currentFrame();              // 保持目前時間點,重算 frameIdx
+  // A/B 秒數不變,幀號要跟新 fps 重算,否則標記位置與文字全錯
+  if (tA != null) fA = clamp(Math.floor(tA * fps), 0, totalFrames - 1);
+  if (tB != null) fB = clamp(Math.floor(tB * fps), 0, totalFrames - 1);
+  updateFpsChip(); renderAB(); updateHUD();
+}
+
+/* fps 自動偵測(僅 rVFC 環境) */
+function collectFpsSample(md){
+  if (video.paused) return;
+  if (md == null || md.mediaTime == null || md.presentedFrames == null) return;
+  fpsSamples.push({ t: md.mediaTime, p: md.presentedFrames });
+  if (fpsSamples.length >= 20){
+    const a = fpsSamples[0], b = fpsSamples[fpsSamples.length - 1];
+    const dp = b.p - a.p, dt = b.t - a.t;    // presentedFrames 可能不連續,只算比率
+    if (dt > 0 && dp > 0){
+      const guess = nearestFps(dp / dt);
+      if (guess) applyAutoFps(guess);
+    }
+    fpsSamples = [];
+  }
+}
+function nearestFps(rate){
+  let best = null, bd = Infinity;
+  for (const f of FPS_TABLE){ const d = Math.abs(f - rate); if (d < bd){ bd = d; best = f; } }
+  return bd <= 2 ? best : null;              // 容差 ±2(涵蓋 23.976/29.97/59.94)
+}
+function applyAutoFps(f){
+  if (fpsManual) return;                     // 手動選過就不套用
+  if (f === fps) return;
+  setFps(f); flashAutoChip();
+}
+
+/* ======================= HUD ======================= */
+function updateHUD(){
+  const f = hudOverride != null ? hudOverride : currentFrame();
+  $("frameNum").textContent = "#" + String(f).padStart(4, "0");
+  $("timecode").textContent = fmtTC(f) + " / " + fmtTC(Math.max(0, totalFrames - 1));
+  if (!scrubbing) slider.value = f;
+}
+function updateFpsChip(){ $("btnFps").innerHTML = fps + '<span class="fps-unit">fps</span>'; }
+function flashAutoChip(){
+  const b = $("btnFps");
+  b.classList.add("auto");
+  b.innerHTML = "auto " + fps + '<span class="fps-unit">fps</span>';
+  setTimeout(() => { b.classList.remove("auto"); updateFpsChip(); }, 1200);
+}
+function showStageMsg(m){ const el = $("stageMsg"); el.textContent = m; el.classList.remove("hidden"); }
+function hideStageMsg(){ $("stageMsg").classList.add("hidden"); }
+
+/* ======================= PLAYBACK / A-B / SPEED / MIRROR ======================= */
+function togglePlay(){ if (video.paused) video.play().catch(()=>{}); else video.pause(); }
+function setPlayUI(on){
+  $("btnPlay").querySelector(".material-symbols-outlined").textContent = on ? "pause" : "play_arrow";
+}
+function normalizeAB(){                        // B≤A 自動交換
+  if (fA != null && fB != null && fA > fB){ [fA, fB] = [fB, fA]; [tA, tB] = [tB, tA]; }
+}
+function setA(){ fA = currentFrame(); tA = (fA + 0.5) / fps; normalizeAB(); renderAB(); }
+function setB(){ fB = currentFrame(); tB = (fB + 0.5) / fps; normalizeAB(); renderAB(); }
+function clearAB(){ fA = fB = tA = tB = null; renderAB(); }
+function renderAB(){
+  $("btnA").classList.toggle("set", fA != null);
+  $("btnB").classList.toggle("set", fB != null);
+  const mk = $("abMarkers"); mk.innerHTML = "";
+  if (fA != null) mk.appendChild(makeMarker(fA, "A"));
+  if (fB != null) mk.appendChild(makeMarker(fB, "B"));
+  const at = $("abText");
+  if (fA != null || fB != null){
+    at.classList.remove("hidden");
+    at.innerHTML = "A#" + (fA == null ? "–" : fA) + "–B#" + (fB == null ? "–" : fB) +
+                   ' <span class="ab-clear">✕</span>';
+    at.querySelector(".ab-clear").addEventListener("click", clearAB);
+  } else at.classList.add("hidden");
+}
+function makeMarker(f, label){
+  const pct = totalFrames > 1 ? (f / (totalFrames - 1)) * 100 : 0;
+  const el = document.createElement("div");
+  el.className = "ab-marker"; el.style.left = pct + "%";
+  el.innerHTML = '<span class="ab-tri"></span><span class="ab-lbl">' + label + "#" + f + "</span>";
+  return el;
+}
+function loopCheck(){
+  if (!loopEnabled || video.paused) return;
+  if (tA != null && tB != null && video.currentTime >= tB) video.currentTime = tA;
+}
+function toggleLoop(){ loopEnabled = !loopEnabled; $("btnLoop").classList.toggle("active", loopEnabled); }
+function cycleSpeed(){
+  speedIdx = (speedIdx + 1) % SPEEDS.length;
+  video.playbackRate = SPEEDS[speedIdx];
+  $("btnSpeed").textContent = SPEED_LABELS[speedIdx];
+}
+function toggleMirror(){ mirror = !mirror; applyTransform(); $("btnMirror").classList.toggle("active", mirror); }
+
+/* ======================= TRANSFORM (zoom/pan/mirror) ======================= */
+function applyTransform(){
+  // mirror 放最外層、zoom/pan 放內層:鏡像時 pan 座標數學不用改
+  mirrorWrap.style.transform = mirror ? "scaleX(-1)" : "none";
+  zoomWrap.style.transform = "translate(" + panX + "px," + panY + "px) scale(" + zoom + ")";
+}
+function clampPanX(x){ const m = (zoom - 1) * stage.clientWidth / 2; return clamp(x, -m, m); }
+function clampPanY(y){ const m = (zoom - 1) * stage.clientHeight / 2; return clamp(y, -m, m); }
+function resetABAndZoom(){ clearAB(); zoom = 1; panX = 0; panY = 0; applyTransform(); }
+// 以 anchor(螢幕座標)為錨縮放:t' = r*t0 + d*(1-r)
+function applyZoomAt(z, anchor, startZoom, startPan){
+  const rect = stage.getBoundingClientRect();
+  const Ox = rect.left + rect.width / 2, Oy = rect.top + rect.height / 2;
+  let dx = anchor.x - Ox; if (mirror) dx = -dx;      // 外層鏡像 → 內層 x 相反
+  const dy = anchor.y - Oy;
+  const r = z / startZoom;
+  zoom = z;
+  if (zoom <= 1.0001){ zoom = 1; panX = 0; panY = 0; }
+  else { panX = clampPanX(r * startPan.x + dx * (1 - r)); panY = clampPanY(r * startPan.y + dy * (1 - r)); }
+  applyTransform();
+}
+
+/* ======================= GESTURES (Pointer Events) ======================= */
+const pointers = new Map();
+let gMode = "none", gStart = null;
+let pinchStartDist = 0, pinchStartZoom = 1, pinchStartPan = { x: 0, y: 0 }, pinchMid = { x: 0, y: 0 };
+let jogRAF = null, pendingJogFrame = null;
+let lastTap = 0, lastTapPos = null;
+
+function onPointerDown(e){
+  try{ stage.setPointerCapture(e.pointerId); }catch(_){}
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 1){
+    if (!video.paused) video.pause();                // pointerdown 即 pause
+    handleDoubleTap(e);
+    gMode = zoom > 1 ? "pan" : "jog";
+    gStart = { x: e.clientX, y: e.clientY, frame: seeking ? frameTarget : currentFrame(), panX, panY };
+  } else if (pointers.size === 2){
+    gMode = "pinch";
+    const p = [...pointers.values()];
+    pinchStartDist = dist(p[0], p[1]) || 1;
+    pinchStartZoom = zoom;
+    pinchStartPan = { x: panX, y: panY };
+    pinchMid = mid(p[0], p[1]);                      // 錨定起始中點,穩定
+  }
+}
+function onPointerMove(e){
+  if (!pointers.has(e.pointerId)) return;
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (gMode === "pinch" && pointers.size >= 2){
+    const p = [...pointers.values()];
+    const z = clamp(pinchStartZoom * (dist(p[0], p[1]) / pinchStartDist), 1, 6);
+    applyZoomAt(z, pinchMid, pinchStartZoom, pinchStartPan);
+  } else if (gMode === "pan"){
+    let dx = e.clientX - gStart.x; const dy = e.clientY - gStart.y;
+    if (mirror) dx = -dx;
+    panX = clampPanX(gStart.panX + dx);
+    panY = clampPanY(gStart.panY + dy);
+    applyTransform();
+  } else if (gMode === "jog"){
+    // 每 10px 一幀,直接映射(無漂移、無慣性);rAF 節流
+    pendingJogFrame = clamp(gStart.frame + Math.round((e.clientX - gStart.x) / 10), 0, totalFrames - 1);
+    if (!jogRAF) jogRAF = requestAnimationFrame(() => {
+      jogRAF = null; if (gMode === "jog" && pendingJogFrame != null) seekToFrame(pendingJogFrame);  // 已轉 pinch 的過期 rAF 不 seek
+    });
+  }
+}
+function onPointerUp(e){
+  pointers.delete(e.pointerId);
+  try{ stage.releasePointerCapture(e.pointerId); }catch(_){}
+  if (pointers.size === 1){
+    const p = [...pointers.values()][0];
+    gMode = zoom > 1 ? "pan" : "jog";
+    gStart = { x: p.x, y: p.y, frame: seeking ? frameTarget : currentFrame(), panX, panY };
+  } else if (pointers.size === 0){
+    gMode = "none";
+  }
+}
+function handleDoubleTap(e){
+  const now = Date.now();
+  if (now - lastTap < 300 && lastTapPos &&
+      Math.hypot(e.clientX - lastTapPos.x, e.clientY - lastTapPos.y) < 30){
+    if (zoom > 1){ zoom = 1; panX = 0; panY = 0; applyTransform(); }         // 重置
+    else applyZoomAt(2, { x: e.clientX, y: e.clientY }, 1, { x: 0, y: 0 });  // 以點按處為中心 zoom 2
+    lastTap = 0; lastTapPos = null;
+  } else { lastTap = now; lastTapPos = { x: e.clientX, y: e.clientY }; }
+}
+function onWheel(e){
+  e.preventDefault();
+  const z = clamp(zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1), 1, 6);
+  applyZoomAt(z, { x: e.clientX, y: e.clientY }, zoom, { x: panX, y: panY });
+}
+
+/* ======================= WAKE LOCK ======================= */
+async function requestWakeLock(){
+  try{ if (navigator.wakeLock) wakeLock = await navigator.wakeLock.request("screen"); }catch(_){}
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && currentTake >= 0) requestWakeLock();
+});
+
+/* ======================= VIDEO EVENTS ======================= */
+video.addEventListener("loadedmetadata", () => {
+  if (currentTake >= 0) takes[currentTake].dur = video.duration;
+  totalFrames = Math.max(1, Math.floor(video.duration * fps));
+  slider.max = totalFrames - 1;
+  video.playbackRate = SPEEDS[speedIdx];
+  frameTarget = 0;
+  seekToFrame(0);
+  renderTakes(); renderAB(); updateHUD();
+  requestWakeLock();
+  startRvfc();
+});
+video.addEventListener("seeked", () => {
+  if (seekTarget != null) doSeek();
+  else { seeking = false; hudOverride = null; updateHUD(); }
+});
+video.addEventListener("timeupdate", () => { if (!video.paused){ loopCheck(); updateHUD(); } });
+video.addEventListener("play", () => { playing = true; setPlayUI(true); hudOverride = null; });
+video.addEventListener("pause", () => { playing = false; setPlayUI(false); frameTarget = currentFrame(); updateHUD(); });
+video.addEventListener("ended", () => {
+  if (loopEnabled){
+    video.currentTime = (tA != null && tB != null) ? tA : 0;
+    video.play().catch(()=>{});
+  } else {
+    setPlayUI(false);
+    seekToFrame(totalFrames - 1);              // loop off:停在最後一幀
+  }
+});
+video.addEventListener("error", () => { if (video.currentSrc) showStageMsg("無法播放此格式"); });
+
+function startRvfc(){
+  if (!rvfcSupported) return;
+  const my = ++rvfcId;                          // 換 take 時作廢舊迴圈,避免疊加
+  const loop = (now, md) => {
+    if (my !== rvfcId) return;
+    collectFpsSample(md);
+    loopCheck();
+    updateHUD();
+    video.requestVideoFrameCallback(loop);      // rVFC 需自我重排
+  };
+  video.requestVideoFrameCallback(loop);
+}
+
+/* ======================= KEYBOARD (桌面) ======================= */
+document.addEventListener("keydown", e => {
+  if (scr !== "S3") return;
+  const tag = (e.target.tagName || "").toLowerCase();
+  if (tag === "input" || tag === "textarea") return;   // 輸入焦點不攔截
+  switch (e.key){
+    case " ": e.preventDefault(); togglePlay(); break;
+    case "ArrowLeft": e.preventDefault(); step(e.shiftKey ? -5 : -1); break;
+    case "ArrowRight": e.preventDefault(); step(e.shiftKey ? 5 : 1); break;
+    case ",": step(-1); break;
+    case ".": step(1); break;
+    case "a": case "A": setA(); break;
+    case "b": case "B": setB(); break;
+    case "l": case "L": toggleLoop(); break;
+    case "m": case "M": toggleMirror(); break;
+  }
+});
+
+/* ======================= FPS POPUP ======================= */
+function toggleFpsPop(){
+  const pop = $("fpsPop");
+  pop.classList.toggle("hidden");
+  if (!pop.classList.contains("hidden")) renderFpsPop();
+}
+function renderFpsPop(){
+  const pop = $("fpsPop"); pop.innerHTML = "";
+  FPS_CHOICES.forEach(f => {
+    const b = document.createElement("button");
+    b.className = "fps-choice" + (f === fps ? " active" : "");
+    b.textContent = f;
+    b.addEventListener("click", () => { fpsManual = true; setFps(f); pop.classList.add("hidden"); });
+    pop.appendChild(b);
+  });
+}
+
+/* ======================= WIRING ======================= */
+// S1
+$("btnRec1").addEventListener("click", enterCamera);
+$("btnLoad1").addEventListener("click", () => $("fileInput").click());
+// file input(不加 capture,讓 iOS 跳選單;不檢查副檔名,.mov 直接餵)
+$("fileInput").addEventListener("change", e => {
+  const f = e.target.files[0]; if (!f) return;
+  addTake(f, f.name.slice(0, 12));
+  loadTake(takes.length - 1);
+  e.target.value = "";                          // 允許再選同一檔
+});
+// S2
+$("btnCamClose").addEventListener("click", () => { stopRec(); stopStream(); showScreen(takes.length ? "S3" : "S1"); });
+$("btnRec").addEventListener("click", onRecPress);
+$("btnFlip").addEventListener("click", () => {
+  if (recorder && recorder.state === "recording") return;   // 換流會停軌道→錄影被迫中斷,錄影中禁切
+  facing = facing === "user" ? "environment" : "user"; startStream();
+});
+$("btnCountdown").addEventListener("click", () => { countdown3 = !countdown3; $("btnCountdown").classList.toggle("active", countdown3); });
+// S3 top
+$("btnFps").addEventListener("click", toggleFpsPop);
+$("btnMirror").addEventListener("click", toggleMirror);
+$("btnNew").addEventListener("click", () => showScreen("S1"));
+// S3 transport
+$("btnA").addEventListener("click", setA);
+$("btnB").addEventListener("click", setB);
+$("btnBack5").addEventListener("click", () => step(-5));
+$("btnBack1").addEventListener("click", () => step(-1));
+$("btnFwd1").addEventListener("click", () => step(1));
+$("btnFwd5").addEventListener("click", () => step(5));
+$("btnPlay").addEventListener("click", togglePlay);
+// S3 secondary
+$("btnLoop").addEventListener("click", toggleLoop);
+$("btnSpeed").addEventListener("click", cycleSpeed);
+$("btnCam").addEventListener("click", enterCamera);
+$("btnLoad2").addEventListener("click", () => $("fileInput").click());
+$("btnSave").addEventListener("click", saveTake);
+// slider(拖動即 pause + seek 合流)
+slider.addEventListener("pointerdown", () => { scrubbing = true; if (!video.paused) video.pause(); });
+slider.addEventListener("input", () => seekToFrame(+slider.value));
+slider.addEventListener("pointerup", () => { scrubbing = false; });
+slider.addEventListener("change", () => { scrubbing = false; });
+// stage gestures
+stage.addEventListener("pointerdown", onPointerDown);
+stage.addEventListener("pointermove", onPointerMove);
+stage.addEventListener("pointerup", onPointerUp);
+stage.addEventListener("pointercancel", onPointerUp);
+stage.addEventListener("wheel", onWheel, { passive: false });
+
+/* ======================= INIT ======================= */
+updateFpsChip();
+setPlayUI(false);
+showScreen("S1");
+</script>
+</body>
+</html>
