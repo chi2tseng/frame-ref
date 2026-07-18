@@ -93,6 +93,10 @@ button{font-family:inherit;color:var(--ink);background:none;border:none;cursor:p
   padding:20px 28px 24px;z-index:2;}
 .camicon{width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.4);color:#fff;
   display:flex;align-items:center;justify-content:center;}
+.lens-row{position:absolute;bottom:104px;left:0;right:0;display:flex;justify-content:center;gap:8px;z-index:2;}
+.lens-chip{min-width:44px;min-height:44px;padding:0 14px;border-radius:32px;border:1px solid rgba(255,255,255,.55);
+  background:rgba(0,0,0,.4);color:#fff;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;}
+.lens-chip.active{background:#fff;color:var(--ink);border-color:#fff;}
 .camicon .material-symbols-outlined{color:#fff;}
 .cd-label{font-size:15px;font-weight:500;color:#fff;}
 #btnCountdown.active{background:var(--coral);}
@@ -233,6 +237,7 @@ button{font-family:inherit;color:var(--ink);background:none;border:none;cursor:p
         <div id="recTime" class="rec-time hidden">0:00</div>
         <button id="btnCountdown" class="camicon"><span class="cd-label">3s</span></button>
       </div>
+      <div id="lensRow" class="lens-row hidden"></div>
       <div class="cam-bottom">
         <button id="btnFlip" class="camicon"><span class="material-symbols-outlined">flip_camera_ios</span></button>
         <button id="btnRec" class="rec-btn"><span class="rec-dot"></span></button>
@@ -343,7 +348,7 @@ let idbAvailable = true, containerFpsResolved = false;
 let saveTimer = null, pendingSaveRec = null, thumbUrls = [], pendingDel = null;
 
 // camera
-let stream = null, recorder = null, chunks = [], facing = "environment";
+let stream = null, recorder = null, chunks = [], facing = "environment", lensId = null;
 let recTimerIv = null, recStart = 0, countdown3 = false, cdIv = null;
 
 // fps auto-detect(rVFC fallback 路徑)
@@ -680,19 +685,58 @@ async function enterCamera(){
 async function startStream(){
   stopStream();
   try{
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: facing, width: { ideal: 1920 }, frameRate: { ideal: 60 } }, audio: true });
+    // 選了特定鏡頭(iPhone 0.5×/1×/長焦)用 deviceId,否則用 facingMode
+    const vc = lensId ? { deviceId: { exact: lensId }, width: { ideal: 1920 }, frameRate: { ideal: 60 } }
+                      : { facingMode: facing, width: { ideal: 1920 }, frameRate: { ideal: 60 } };
+    stream = await navigator.mediaDevices.getUserMedia({ video: vc, audio: true });
     $("camVideo").srcObject = stream;
     $("camVideo").play().catch(()=>{});
     $("camVideo").style.transform = facing === "user" ? "scaleX(-1)" : "none";  // 前鏡預覽鏡像,錄檔不鏡像
     hideCamErr();
+    updateLensRow();
   }catch(err){
+    if (err.name === "OverconstrainedError" && lensId){ lensId = null; return startStream(); }  // 記住的鏡頭不存在了 → 退回 facingMode
     if (err.name === "NotAllowedError")
       showCamErr("相機權限被拒——到 iOS 設定 > Safari > 相機 允許,或改用「載入影片」");
     else showCamErr("相機錯誤:" + err.name);
   }
 }
 function stopStream(){ if (stream){ stream.getTracks().forEach(t => t.stop()); stream = null; } }
+function lensShortLabel(label, idx){
+  const l = (label || "").toLowerCase();
+  if (/ultra|超廣/.test(l)) return "0.5×";
+  if (/tele|望遠|長焦/.test(l)) return "長焦";
+  if (/dual|triple|雙鏡|三鏡/.test(l)) return "自動";
+  return label ? "1×" : (idx + 1) + "號";
+}
+async function updateLensRow(){
+  const row = $("lensRow");
+  try{
+    if (facing === "user" || !navigator.mediaDevices.enumerateDevices){ row.classList.add("hidden"); return; }
+    const devs = (await navigator.mediaDevices.enumerateDevices())
+      .filter(d => d.kind === "videoinput")
+      .filter(d => !/front|user|facetime|前置/i.test(d.label));       // 只列後鏡頭;label 需權限後才有(startStream 之後呼叫)
+    if (devs.length < 2){ row.classList.add("hidden"); return; }
+    const curId = stream && stream.getVideoTracks()[0] && stream.getVideoTracks()[0].getSettings().deviceId;
+    row.innerHTML = "";
+    const seen = {};
+    devs.forEach((d, i) => {
+      const b = document.createElement("button");
+      let lbl = lensShortLabel(d.label, i);
+      if (seen[lbl] != null) lbl = lbl + " " + (++seen[lbl] + 1); else seen[lbl] = 0;
+      b.className = "lens-chip" + (d.deviceId === curId ? " active" : "");
+      b.textContent = lbl;
+      b.addEventListener("click", () => switchLens(d.deviceId));
+      row.appendChild(b);
+    });
+    row.classList.remove("hidden");
+  }catch(_){ row.classList.add("hidden"); }
+}
+function switchLens(id){
+  if (recorder && recorder.state === "recording") return;             // 換流會斷錄影,錄影中禁切
+  if (cdIv) return;                                                   // 倒數中也不切
+  lensId = id; startStream();
+}
 function showCamErr(msg){ const el = $("camErr"); el.textContent = msg; el.classList.remove("hidden"); }
 function hideCamErr(){ $("camErr").classList.add("hidden"); }
 function pickMime(){
@@ -1098,7 +1142,9 @@ $("btnCamClose").addEventListener("click", () => {
 $("btnRec").addEventListener("click", onRecPress);
 $("btnFlip").addEventListener("click", () => {
   if (recorder && recorder.state === "recording") return;      // 錄影中禁切鏡頭(換流會中斷錄影)
-  facing = facing === "user" ? "environment" : "user"; startStream();
+  facing = facing === "user" ? "environment" : "user";
+  lensId = null;                                               // 換面即放棄特定鏡頭選擇,回 facingMode
+  startStream();
 });
 $("btnCountdown").addEventListener("click", () => { countdown3 = !countdown3; $("btnCountdown").classList.toggle("active", countdown3); });
 // S3 top
