@@ -3,171 +3,241 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta name="theme-color" content="#0e0f12">
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" href="data:,">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>FrameRef</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Material+Symbols+Outlined&display=block">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500&family=Inter:wght@400;500&family=Material+Symbols+Outlined&display=block">
 <style>
+/* ===== Cohere design tokens (white canvas + dark rounded media card, flat, no shadow) ===== */
 :root{
-  --bg:#0e0f12; --panel:#16181d; --border:#26282f;
-  --text:#e8eaed; --muted:#9aa0a6; --accent:#4c8dff; --rec:#ff453a;
+  --canvas:#ffffff; --stone:#eeece7; --hair:#d9d9dd; --border-light:#e5e7eb;
+  --ink:#212121; --muted:#93939f; --slate:#75758a;
+  --primary:#17171c; --coral:#ff7759; --coral-soft:#ffad9b; --blue:#1863dc; --focus:#4c6ee6;
   --mono:ui-monospace,"SF Mono",Consolas,monospace;
+  --sans:"Space Grotesk",Inter,-apple-system,"PingFang TC",sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;}
 body{
-  background:var(--bg);color:var(--text);
-  font-family:Inter,-apple-system,"PingFang TC",sans-serif;
+  background:var(--canvas);color:var(--ink);
+  font-family:var(--sans);font-weight:400;
   overflow:hidden;overscroll-behavior:none;
   height:100vh;height:100dvh;
   -webkit-user-select:none;user-select:none;
 }
 .material-symbols-outlined{font-size:24px;line-height:1;user-select:none;}
 .hidden{display:none!important;}
-button{font-family:inherit;color:var(--text);background:none;border:none;cursor:pointer;touch-action:manipulation;}
+button{font-family:inherit;color:var(--ink);background:none;border:none;cursor:pointer;touch-action:manipulation;}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
 
 /* screens */
 .screen{position:fixed;inset:0;}
 #app{height:100vh;height:100dvh;}
 
-/* S1 empty state */
-.s1{display:flex;align-items:center;justify-content:center;
+/* ===== S1 library ===== */
+.s1{display:flex;flex-direction:column;background:var(--canvas);}
+/* empty state (no clips) — v1 two big buttons */
+.lib-empty{flex:1 1 auto;display:flex;align-items:center;justify-content:center;
   padding:24px calc(24px + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left));}
-.s1-inner{display:flex;flex-direction:column;gap:16px;width:100%;max-width:320px;align-items:stretch;}
+.s1-inner{display:flex;flex-direction:column;gap:14px;width:100%;max-width:320px;align-items:stretch;}
 .big-btn{display:flex;align-items:center;justify-content:center;gap:10px;
-  min-height:64px;border:1px solid var(--border);border-radius:14px;background:var(--panel);
-  font-size:17px;font-weight:500;}
-.big-btn .material-symbols-outlined{font-size:26px;color:var(--accent);}
-.hint{color:var(--muted);font-size:12.5px;line-height:1.5;text-align:center;margin-top:6px;}
+  min-height:60px;border:1px solid var(--ink);border-radius:32px;background:transparent;color:var(--ink);
+  font-size:16px;font-weight:500;}
+.big-btn .material-symbols-outlined{font-size:24px;}
+.hint{color:#616161;font-size:12.5px;line-height:1.5;text-align:center;margin-top:4px;}  /* body-muted:白底對比 ≥4.5:1,--muted 只夠 metadata */
+/* full library */
+.lib-full{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;
+  padding-top:env(safe-area-inset-top);}
+.lib-top{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;
+  padding:16px 16px 12px;border-bottom:1px solid var(--hair);}
+.lib-title{font-size:22px;font-weight:500;letter-spacing:-.4px;}
+.lib-actions{display:flex;gap:8px;}
+.pill-btn{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 16px;
+  border:1px solid var(--ink);border-radius:32px;background:transparent;color:var(--ink);
+  font-size:14px;font-weight:500;}
+.pill-btn .material-symbols-outlined{font-size:20px;}
+.idb-warn{flex:0 0 auto;display:flex;align-items:center;gap:8px;margin:10px 16px 0;
+  padding:10px 14px;border:1px solid var(--coral-soft);border-radius:16px;
+  color:var(--ink);font-size:13px;background:transparent;}
+.idb-warn .material-symbols-outlined{font-size:20px;color:var(--coral);}
+.lib-grid{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  display:grid;grid-template-columns:1fr 1fr;gap:12px;
+  padding:12px 16px calc(20px + env(safe-area-inset-bottom));}
+.clip-card{display:flex;flex-direction:column;position:relative;
+  border:1px solid var(--hair);border-radius:8px;background:var(--canvas);overflow:hidden;}
+.clip-thumb{width:100%;aspect-ratio:9/16;background:var(--primary);display:block;overflow:hidden;}
+.clip-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+.clip-name{padding:8px 10px 2px;font-size:14px;font-weight:500;line-height:1.3;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.clip-name-input{margin:6px 8px 2px;width:calc(100% - 16px);font-family:inherit;font-size:14px;
+  border:1px solid var(--focus);border-radius:6px;padding:4px 6px;color:var(--ink);background:var(--canvas);}
+.clip-meta{padding:0 10px 10px;font-family:var(--mono);font-size:11px;color:var(--muted);
+  font-variant-numeric:tabular-nums;}
+.clip-x{position:absolute;top:2px;right:2px;min-width:44px;height:44px;padding:0 8px;border-radius:22px;
+  background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;}
+.clip-x .material-symbols-outlined{font-size:18px;color:#fff;}
+.clip-x.confirm{background:var(--coral);}
+.del-confirm{color:#fff;font-size:12px;font-weight:500;padding:0 2px;}
 
-/* S2 camera */
-.s2{background:#000;}
-.cam-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000;}
+/* ===== S2 camera (dark rounded card on white shell) ===== */
+.s2{display:flex;flex-direction:column;background:var(--canvas);
+  padding:env(safe-area-inset-top) 12px calc(12px + env(safe-area-inset-bottom));}
+.cam-stage{flex:1 1 auto;position:relative;margin-top:12px;border-radius:22px;overflow:hidden;
+  background:var(--primary);min-height:0;}
+.cam-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:var(--primary);}
 .cam-top{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;
-  padding:calc(12px + env(safe-area-inset-top)) 16px 12px;z-index:2;}
+  padding:12px 14px;z-index:2;}
 .cam-bottom{position:absolute;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;
-  padding:20px 32px calc(24px + env(safe-area-inset-bottom));z-index:2;}
-.cam-top .sbtn,.cam-bottom .sbtn{background:rgba(0,0,0,.4);border-radius:50%;}
-.rec-time{font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:15px;
+  padding:20px 28px 24px;z-index:2;}
+.camicon{width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.4);color:#fff;
+  display:flex;align-items:center;justify-content:center;}
+.camicon .material-symbols-outlined{color:#fff;}
+.cd-label{font-size:15px;font-weight:500;color:#fff;}
+#btnCountdown.active{background:var(--coral);}
+.rec-time{font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:15px;color:#fff;
   background:rgba(0,0,0,.45);padding:5px 12px;border-radius:20px;display:flex;align-items:center;gap:6px;}
-.rec-time::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--rec);animation:blink 1s steps(1) infinite;}
+.rec-time::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--coral);animation:blink 1s steps(1) infinite;}
 @keyframes blink{50%{opacity:.15;}}
-.spacer-btn{width:48px;}
-.cd-label{font-size:15px;font-weight:600;}
-#btnCountdown.active{color:var(--accent);}
-/* REC round button; recording -> inner square + red ring */
-.rec-btn{width:74px;height:74px;border-radius:50%;background:rgba(255,255,255,.15);
-  border:4px solid #fff;display:flex;align-items:center;justify-content:center;}
-.rec-dot{width:56px;height:56px;border-radius:50%;background:var(--rec);transition:border-radius .15s,width .15s,height .15s;}
-.rec-btn.recording{border-color:var(--rec);}
+.spacer-btn{width:44px;}
+/* REC = coral solid circle; recording -> square + pulse */
+.rec-btn{width:74px;height:74px;border-radius:50%;background:transparent;
+  border:4px solid var(--coral);display:flex;align-items:center;justify-content:center;}
+.rec-dot{width:56px;height:56px;border-radius:50%;background:var(--coral);transition:border-radius .15s,width .15s,height .15s;}
+.rec-btn.recording{animation:pulse 1.2s ease-in-out infinite;}
 .rec-btn.recording .rec-dot{width:30px;height:30px;border-radius:7px;}
+@keyframes pulse{50%{border-color:var(--coral-soft);}}
 .cam-err{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  width:calc(100% - 48px);max-width:340px;background:var(--panel);border:1px solid var(--border);
-  border-radius:12px;padding:18px 20px;font-size:14px;line-height:1.6;color:var(--text);z-index:3;text-align:center;}
+  width:calc(100% - 40px);max-width:320px;background:var(--canvas);border:1px solid var(--hair);
+  border-radius:16px;padding:18px 20px;font-size:14px;line-height:1.6;color:var(--ink);z-index:3;text-align:center;}
 .big-count{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  font-size:120px;font-weight:600;font-variant-numeric:tabular-nums;text-shadow:0 2px 20px rgba(0,0,0,.6);z-index:3;}
+  font-size:120px;font-weight:500;color:#fff;font-variant-numeric:tabular-nums;z-index:3;}
 
-/* S3 shell */
-.s3{display:flex;flex-direction:column;height:100vh;height:100dvh;
+/* ===== S3 player shell ===== */
+.s3{display:flex;flex-direction:column;height:100vh;height:100dvh;background:var(--canvas);
   padding-bottom:env(safe-area-inset-bottom);}
 .topbar{display:flex;align-items:center;justify-content:space-between;
-  padding:calc(8px + env(safe-area-inset-top)) 12px 8px;flex:0 0 auto;}
-.brand{font-weight:600;font-size:15px;letter-spacing:.3px;}
+  padding:calc(10px + env(safe-area-inset-top)) 14px 10px;flex:0 0 auto;border-bottom:1px solid var(--hair);}
+.brand{font-weight:500;font-size:17px;letter-spacing:-.2px;}
 .top-actions{display:flex;align-items:center;gap:6px;}
-.chip{min-height:44px;padding:0 14px;border:1px solid var(--border);border-radius:22px;background:var(--panel);
-  font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;display:inline-flex;align-items:center;gap:3px;}
-.chip.active{border-color:var(--accent);color:var(--accent);}
-#btnFps.auto{border-color:var(--accent);color:var(--accent);}
+/* chip = pill outline; active = coral fill + ink text */
+.chip{min-height:44px;padding:0 14px;border:1px solid var(--ink);border-radius:32px;background:transparent;
+  color:var(--ink);font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;
+  display:inline-flex;align-items:center;gap:3px;}
+.chip.active{background:var(--coral);border-color:var(--coral);color:var(--ink);}
+#btnFps.auto{background:var(--coral);border-color:var(--coral);color:var(--ink);}
 .fps-unit{font-size:10px;color:var(--muted);}
-.sbtn{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--text);}
-.sbtn.active{color:var(--accent);}
-.fps-pop{position:absolute;top:calc(60px + env(safe-area-inset-top));right:12px;z-index:10;
-  background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:6px;
+#btnFps.active .fps-unit,#btnFps.auto .fps-unit{color:var(--ink);}
+.sbtn{width:44px;height:44px;border-radius:22px;display:flex;align-items:center;justify-content:center;color:var(--ink);}
+.sbtn.active{color:var(--coral);}
+.warn-top{color:var(--coral);}
+.fps-pop{position:absolute;top:calc(64px + env(safe-area-inset-top));right:14px;z-index:10;
+  background:var(--canvas);border:1px solid var(--hair);border-radius:16px;padding:6px;
   display:flex;flex-direction:column;gap:2px;}
-.fps-choice{min-height:44px;padding:0 22px;border-radius:8px;font-size:14px;font-variant-numeric:tabular-nums;text-align:center;}
-.fps-choice.active{color:var(--accent);background:rgba(76,141,255,.12);}
+.fps-choice{min-height:44px;padding:0 22px;border-radius:22px;font-size:14px;color:var(--ink);
+  font-variant-numeric:tabular-nums;text-align:center;}
+.fps-choice.active{background:var(--coral);color:var(--ink);}
 
-/* stage */
-.stage{flex:1 1 auto;position:relative;background:#000;overflow:hidden;
-  touch-action:none;-webkit-touch-callout:none;min-height:0;}
+/* stage = near-black 22px rounded media card floating on white */
+.stage{flex:1 1 auto;position:relative;background:var(--primary);overflow:hidden;
+  margin:12px;border-radius:22px;touch-action:none;-webkit-touch-callout:none;min-height:0;}
 .mirror-wrap,.zoom-wrap{position:absolute;inset:0;transform-origin:center center;will-change:transform;}
-#video{width:100%;height:100%;object-fit:contain;background:#000;display:block;}
-.hud{position:absolute;top:10px;left:10px;z-index:2;background:rgba(0,0,0,.5);
+#video{width:100%;height:100%;object-fit:contain;background:var(--primary);display:block;}
+.hud{position:absolute;top:12px;left:12px;z-index:2;background:rgba(0,0,0,.42);
   border-radius:10px;padding:6px 10px;pointer-events:none;}
-.frame-num{font-family:var(--mono);font-size:26px;font-weight:600;line-height:1.1;letter-spacing:1px;}
-.timecode{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums;}
+.frame-num{font-family:var(--mono);font-size:26px;font-weight:500;line-height:1.1;letter-spacing:1px;color:#fff;}
+.timecode{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.7);margin-top:2px;font-variant-numeric:tabular-nums;}
+.trim-hud{font-family:var(--mono);font-size:11px;color:var(--coral-soft);margin-top:3px;
+  font-variant-numeric:tabular-nums;letter-spacing:.4px;}
 .stage-msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 18px;font-size:14px;z-index:3;}
+  background:var(--canvas);border:1px solid var(--hair);border-radius:16px;padding:14px 18px;font-size:14px;color:var(--ink);z-index:3;text-align:center;}
 
 /* scrub */
-.scrub-wrap{flex:0 0 auto;padding:6px 12px 2px;}
+.scrub-wrap{flex:0 0 auto;padding:4px 16px 2px;position:relative;}
+/* trim overview strip (full-timeline context, shown while trim bar open). See note in TRIM section. */
+.trim-overlay{position:relative;height:6px;margin:2px 10px 4px;border-radius:3px;background:var(--hair);overflow:hidden;}
+.trim-mask{position:absolute;top:0;height:100%;background:var(--coral-soft);opacity:.3;}
+#trimHead{left:0;}
+.trim-mark{position:absolute;top:-2px;width:2px;height:10px;background:var(--coral);transform:translateX(-1px);}
 .slider{-webkit-appearance:none;appearance:none;width:100%;height:44px;background:transparent;touch-action:manipulation;}
-.slider::-webkit-slider-runnable-track{height:4px;background:var(--border);border-radius:2px;}
-.slider::-moz-range-track{height:4px;background:var(--border);border-radius:2px;}
+.slider::-webkit-slider-runnable-track{height:4px;background:var(--hair);border-radius:2px;}
+.slider::-moz-range-track{height:4px;background:var(--hair);border-radius:2px;}
 .slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;border-radius:50%;
-  background:var(--accent);margin-top:-8px;box-shadow:0 0 0 6px rgba(76,141,255,.12);}
-.slider::-moz-range-thumb{width:20px;height:20px;border:none;border-radius:50%;background:var(--accent);}
+  background:var(--primary);margin-top:-8px;}
+.slider::-moz-range-thumb{width:20px;height:20px;border:none;border-radius:50%;background:var(--primary);}
 .ab-markers{position:relative;height:16px;margin:0 10px;}
 .ab-marker{position:absolute;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;}
-.ab-tri{width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:5px solid var(--accent);}
-.ab-lbl{font-size:9px;color:var(--accent);font-family:var(--mono);line-height:1.3;white-space:nowrap;}
+.ab-tri{width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:5px solid var(--ink);}
+.ab-lbl{font-size:9px;color:var(--ink);font-family:var(--mono);line-height:1.3;white-space:nowrap;}
 
 /* transport */
-.transport{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:5px;padding:4px 12px;}
-.tbtn{flex:1 1 0;min-width:0;height:48px;border-radius:11px;background:var(--panel);border:1px solid var(--border);
-  display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;}
-.tbtn.ab{max-width:46px;color:var(--muted);}
-.tbtn.ab.set{color:var(--accent);border-color:var(--accent);}
-.tbtn.play{flex:1.4 1 0;background:var(--accent);border-color:var(--accent);}
+.transport{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:4px 16px;}
+.tbtn{flex:1 1 0;min-width:0;height:48px;border-radius:32px;background:transparent;border:1px solid var(--ink);
+  color:var(--ink);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:500;}
+.tbtn.ab{max-width:44px;color:var(--muted);border-color:var(--hair);}
+.tbtn.ab.set{color:var(--coral);border-color:var(--coral);}
+.tbtn.play{flex:1.4 1 0;background:var(--primary);border-color:var(--primary);}
 .tbtn.play .material-symbols-outlined{font-size:30px;color:#fff;}
 
 /* secondary */
-.secondary{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:4px 12px 6px;}
+.secondary{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:6px 16px 4px;}
 .ab-text{font-size:11px;color:var(--muted);font-family:var(--mono);white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis;flex:0 1 auto;}
-.ab-clear{color:var(--accent);padding:0 3px;cursor:pointer;}
+.ab-clear{color:var(--coral);padding:0 3px;cursor:pointer;}
 .secondary .spacer{flex:1 1 auto;}
 #btnSpeed{min-width:44px;justify-content:center;}
+#btnTrim.active{color:var(--coral);}
 
-/* takes */
-.takes-row{flex:0 0 auto;display:flex;gap:8px;overflow-x:auto;padding:4px 12px 8px;
-  -webkit-overflow-scrolling:touch;scrollbar-width:none;}
-.takes-row::-webkit-scrollbar{display:none;}
-.take-chip{flex:0 0 auto;display:flex;align-items:center;gap:6px;height:44px;padding:0 6px 0 14px;
-  border:1px solid var(--border);border-radius:22px;background:var(--panel);font-size:12.5px;white-space:nowrap;}
-.take-chip.active{border-color:var(--accent);color:var(--accent);}
-.take-name{font-variant-numeric:tabular-nums;}
-.take-x{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-  font-size:12px;color:var(--muted);}
+/* trim controls row */
+.trim-bar{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:2px 16px 6px;}
+.trim-btn{flex:1 1 0;min-height:44px;border:1px solid var(--ink);border-radius:32px;background:transparent;
+  color:var(--ink);font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:4px;}
+.trim-btn.reset{color:#616161;border-color:var(--hair);}
+.ab-clear.material-symbols-outlined{font-size:15px;vertical-align:-3px;}
 </style>
 </head>
 <body>
 <div id="app">
 
-  <!-- S1 空狀態 -->
+  <!-- S1 片庫 / 空狀態 -->
   <div id="screenS1" class="screen s1">
-    <div class="s1-inner">
-      <button id="btnRec1" class="big-btn"><span class="material-symbols-outlined">videocam</span>錄影</button>
-      <button id="btnLoad1" class="big-btn"><span class="material-symbols-outlined">upload</span>載入影片</button>
-      <p class="hint">高格數建議用原生相機拍(可用慢動作 240fps),再從圖庫載入</p>
+    <div id="libEmpty" class="lib-empty">
+      <div class="s1-inner">
+        <button id="btnRecEmpty" class="big-btn"><span class="material-symbols-outlined">videocam</span>錄影</button>
+        <button id="btnLoadEmpty" class="big-btn"><span class="material-symbols-outlined">upload</span>載入影片</button>
+        <p class="hint">高格數建議用原生相機拍(可用慢動作 240fps),再從圖庫載入</p>
+      </div>
+    </div>
+    <div id="libFull" class="lib-full hidden">
+      <div class="lib-top">
+        <div class="lib-title">FrameRef</div>
+        <div class="lib-actions">
+          <button id="btnRecPill" class="pill-btn"><span class="material-symbols-outlined">videocam</span>錄影</button>
+          <button id="btnLoadPill" class="pill-btn"><span class="material-symbols-outlined">upload</span>載入</button>
+        </div>
+      </div>
+      <div id="idbWarn" class="idb-warn hidden"><span class="material-symbols-outlined">warning</span><span id="idbWarnText"></span></div>
+      <div id="libGrid" class="lib-grid"></div>
     </div>
   </div>
 
   <!-- S2 相機 -->
   <div id="screenS2" class="screen s2 hidden">
-    <video id="camVideo" class="cam-video" muted playsinline webkit-playsinline autoplay></video>
-    <div id="camErr" class="cam-err hidden"></div>
-    <div id="bigCount" class="big-count hidden"></div>
-    <div class="cam-top">
-      <button id="btnCamClose" class="sbtn"><span class="material-symbols-outlined">close</span></button>
-      <div id="recTime" class="rec-time hidden">0:00</div>
-      <button id="btnCountdown" class="sbtn"><span class="cd-label">3s</span></button>
-    </div>
-    <div class="cam-bottom">
-      <button id="btnFlip" class="sbtn"><span class="material-symbols-outlined">flip_camera_ios</span></button>
-      <button id="btnRec" class="rec-btn"><span class="rec-dot"></span></button>
-      <span class="spacer-btn"></span>
+    <div class="cam-stage">
+      <video id="camVideo" class="cam-video" muted playsinline webkit-playsinline autoplay></video>
+      <div id="camErr" class="cam-err hidden"></div>
+      <div id="bigCount" class="big-count hidden"></div>
+      <div class="cam-top">
+        <button id="btnCamClose" class="camicon"><span class="material-symbols-outlined">close</span></button>
+        <div id="recTime" class="rec-time hidden">0:00</div>
+        <button id="btnCountdown" class="camicon"><span class="cd-label">3s</span></button>
+      </div>
+      <div class="cam-bottom">
+        <button id="btnFlip" class="camicon"><span class="material-symbols-outlined">flip_camera_ios</span></button>
+        <button id="btnRec" class="rec-btn"><span class="rec-dot"></span></button>
+        <span class="spacer-btn"></span>
+      </div>
     </div>
   </div>
 
@@ -176,9 +246,10 @@ button{font-family:inherit;color:var(--text);background:none;border:none;cursor:
     <div class="topbar">
       <div class="brand">FrameRef</div>
       <div class="top-actions">
+        <span id="idbWarnTop" class="sbtn warn-top hidden" title="本機儲存不可用,離開後不保留"><span class="material-symbols-outlined">warning</span></span>
         <button id="btnFps" class="chip">30<span class="fps-unit">fps</span></button>
         <button id="btnMirror" class="sbtn"><span class="material-symbols-outlined">flip</span></button>
-        <button id="btnNew" class="sbtn"><span class="material-symbols-outlined">add</span></button>
+        <button id="btnLibrary" class="sbtn"><span class="material-symbols-outlined">video_library</span></button>
       </div>
     </div>
     <div id="fpsPop" class="fps-pop hidden"></div>
@@ -192,11 +263,18 @@ button{font-family:inherit;color:var(--text);background:none;border:none;cursor:
       <div class="hud">
         <div id="frameNum" class="frame-num">#0000</div>
         <div id="timecode" class="timecode">0:00.00 / 0:00.00</div>
+        <div id="trimHud" class="trim-hud hidden"></div>
       </div>
       <div id="stageMsg" class="stage-msg hidden"></div>
     </div>
 
     <div class="scrub-wrap">
+      <div id="trimOverlay" class="trim-overlay hidden">
+        <div id="trimHead" class="trim-mask"></div>
+        <div id="trimTail" class="trim-mask"></div>
+        <div id="trimMarkIn" class="trim-mark"></div>
+        <div id="trimMarkOut" class="trim-mark"></div>
+      </div>
       <input id="slider" class="slider" type="range" min="0" max="0" step="1" value="0">
       <div id="abMarkers" class="ab-markers"></div>
     </div>
@@ -213,6 +291,7 @@ button{font-family:inherit;color:var(--text);background:none;border:none;cursor:
 
     <div class="secondary">
       <button id="btnLoop" class="sbtn"><span class="material-symbols-outlined">repeat</span></button>
+      <button id="btnTrim" class="sbtn"><span class="material-symbols-outlined">content_cut</span></button>
       <span id="abText" class="ab-text hidden"></span>
       <button id="btnSpeed" class="chip">1×</button>
       <span class="spacer"></span>
@@ -221,7 +300,11 @@ button{font-family:inherit;color:var(--text);background:none;border:none;cursor:
       <button id="btnSave" class="sbtn"><span class="material-symbols-outlined">download</span></button>
     </div>
 
-    <div id="takesRow" class="takes-row hidden"></div>
+    <div id="trimBar" class="trim-bar hidden">
+      <button id="btnTrimIn" class="trim-btn">設入點</button>
+      <button id="btnTrimOut" class="trim-btn">設出點</button>
+      <button id="btnTrimReset" class="trim-btn reset">重置</button>
+    </div>
   </div>
 
   <input id="fileInput" type="file" accept="video/*" hidden>
@@ -241,25 +324,29 @@ let mirror = false, playing = false;
 let zoom = 1, panX = 0, panY = 0;
 let hudOverride = null, scrubbing = false;
 
+// 裁切:trimIn/trimOut 一律絕對幀(含末端);顯示層才換算相對幀
+let trimIn = 0, trimOut = 0, trimBarOpen = false;
+
 // seek 合流:只記最新目標,seeked 回來後若又變了再 seek
 let seekTarget = null, seeking = false;
 
-// A-B
+// A-B(內部一律絕對:tA/tB 秒、fA/fB 絕對幀)
 let fA = null, fB = null, tA = null, tB = null, loopEnabled = false;
 
 // speed
 const SPEEDS = [1, 0.5, 0.25], SPEED_LABELS = ["1×", "½×", "¼×"];
 let speedIdx = 0;
 
-// takes
-let takes = [];            // {url, blob, name, dur}
-let currentTake = -1;
+// 片庫(IDB 紀錄,newest-first;開啟時才給 .url)
+let clips = [], curId = null;
+let idbAvailable = true, containerFpsResolved = false;
+let saveTimer = null, pendingSaveRec = null, thumbUrls = [], pendingDel = null;
 
 // camera
 let stream = null, recorder = null, chunks = [], facing = "environment";
 let recTimerIv = null, recStart = 0, countdown3 = false, cdIv = null;
 
-// fps auto-detect
+// fps auto-detect(rVFC fallback 路徑)
 let fpsSamples = [];
 const FPS_TABLE = [24, 25, 30, 50, 60, 120, 240];
 const FPS_CHOICES = [24, 25, 30, 50, 60, 120, 240];
@@ -272,6 +359,10 @@ let wakeLock = null;
 const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+
+// 顯示層相對幀換算(唯二兩個換算點,不撒進引擎)
+const dispFrame = abs => clamp(abs, trimIn, trimOut) - trimIn;
+const dispTotal = () => trimOut - trimIn + 1;
 
 function fmtTC(frame){
   const s = frame / fps;
@@ -289,6 +380,121 @@ function tsStamp(){
          p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds());
 }
 const currentFrame = () => clamp(Math.floor(video.currentTime * fps), 0, Math.max(0, totalFrames - 1));
+const curClip = () => clips.find(c => c.id === curId) || null;
+
+/* ======================= IDB (小 promise wrapper,不引庫) ======================= */
+function idbOpen(){
+  return new Promise((res, rej) => {
+    let r;
+    try{ r = indexedDB.open("frameref", 1); }catch(e){ return rej(e); }
+    r.onupgradeneeded = () => { const db = r.result;
+      if (!db.objectStoreNames.contains("clips")) db.createObjectStore("clips", { keyPath: "id", autoIncrement: true }); };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+function idbReq(mode, fn){
+  return idbOpen().then(db => new Promise((res, rej) => {
+    const tx = db.transaction("clips", mode);
+    const rq = fn(tx.objectStore("clips"));
+    rq.onsuccess = () => res(rq.result);
+    rq.onerror = () => rej(rq.error);
+  }));
+}
+const idbGetAll = () => idbReq("readonly", st => st.getAll());
+const idbPut = rec => idbReq("readwrite", st => st.put(rec));
+const idbDelete = id => idbReq("readwrite", st => st.delete(id));
+
+function persistClip(rec){
+  if (!rec || !idbAvailable || rec.memoryOnly) return;
+  const { url, ...data } = rec;               // 不存 objectURL
+  idbPut(data).catch(err => { if (err && err.name === "QuotaExceededError") showQuotaWarn(); });
+}
+function persistSoon(rec){
+  if (pendingSaveRec && pendingSaveRec !== rec) persistClip(pendingSaveRec);  // 換對象先沖掉前一筆,避免 debounce 吃寫入
+  clearTimeout(saveTimer); pendingSaveRec = rec;
+  saveTimer = setTimeout(() => { pendingSaveRec = null; persistClip(rec); }, 300);
+}
+function flushPendingSave(){ if (!pendingSaveRec) return; clearTimeout(saveTimer); const r = pendingSaveRec; pendingSaveRec = null; persistClip(r); }
+function cancelPendingSave(rec){ if (pendingSaveRec === rec){ clearTimeout(saveTimer); pendingSaveRec = null; } }
+
+/* ======================= MP4PARSE (容器級 fps;所有讀取用 slice,全 try/catch 回 null) ======================= */
+function boxType(dv, o){
+  return String.fromCharCode(dv.getUint8(o), dv.getUint8(o+1), dv.getUint8(o+2), dv.getUint8(o+3));
+}
+// 頂層走訪:每 box 讀 header(size+type),size===1 讀 largesize,size===0 到檔尾
+async function readBoxAt(blob, off){
+  const dv = new DataView(await blob.slice(off, off + 16).arrayBuffer());
+  if (dv.byteLength < 8) return null;
+  let size = dv.getUint32(0), hs = 8;
+  const type = boxType(dv, 4);
+  if (size === 1){
+    if (dv.byteLength < 16) return null;
+    size = dv.getUint32(8) * 4294967296 + dv.getUint32(12);   // largesize(64-bit)→Number
+    hs = 16;
+  } else if (size === 0){
+    size = blob.size - off;                                    // 到檔尾
+  }
+  return { type, start: off, size, headerSize: hs, end: off + size };
+}
+async function findMoov(blob){
+  let off = 0, guard = 0;
+  while (off + 8 <= blob.size && guard++ < 128){              // cap:非 MP4(webm)不會被拆成大量 junk box 卡住
+    const b = await readBoxAt(blob, off);
+    if (!b || b.size < 8) return null;
+    if (b.type === "moov") return b;                           // 檔頭/檔尾兩種佈局都走得到;mdat 直接跳過
+    off = b.end;
+  }
+  return null;
+}
+// 在已讀入的 moov ArrayBuffer 內同步走 box
+function* childBoxes(dv, start, end){
+  let off = start;
+  while (off + 8 <= end){
+    let size = dv.getUint32(off), hs = 8;
+    const type = boxType(dv, off + 4);
+    if (size === 1){ size = dv.getUint32(off+8) * 4294967296 + dv.getUint32(off+12); hs = 16; }
+    else if (size === 0){ size = end - off; }
+    if (size < 8) return;
+    yield { type, start: off, dataStart: off + hs, end: off + size };
+    off += size;
+  }
+}
+function firstChild(dv, box, type){
+  for (const c of childBoxes(dv, box.dataStart, box.end)) if (c.type === type) return c;
+  return null;
+}
+async function parseMp4Fps(blob){
+  try{
+    const moov = await findMoov(blob);
+    if (!moov || moov.size > 8 * 1024 * 1024) return null;     // moov 過大放棄→fallback
+    const dv = new DataView(await blob.slice(moov.start, moov.end).arrayBuffer());
+    const moovBox = { dataStart: moov.headerSize, end: moov.size };   // buf 內相對座標
+    for (const trak of [...childBoxes(dv, moovBox.dataStart, moovBox.end)].filter(b => b.type === "trak")){
+      const mdia = firstChild(dv, trak, "mdia"); if (!mdia) continue;
+      const hdlr = firstChild(dv, mdia, "hdlr"); if (!hdlr) continue;
+      if (boxType(dv, hdlr.dataStart + 8) !== "vide") continue; // 只取視訊軌
+      const mdhd = firstChild(dv, mdia, "mdhd"); if (!mdhd) continue;
+      const ver = dv.getUint8(mdhd.dataStart);
+      const timescale = ver === 1 ? dv.getUint32(mdhd.dataStart + 20) : dv.getUint32(mdhd.dataStart + 12);
+      const minf = firstChild(dv, mdia, "minf"); if (!minf) continue;
+      const stbl = firstChild(dv, minf, "stbl"); if (!stbl) continue;
+      const stts = firstChild(dv, stbl, "stts"); if (!stts) continue;
+      const entries = dv.getUint32(stts.dataStart + 4);
+      let bestCount = -1, bestDelta = 0;                        // 加權眾數:取 sample count 最大的 entry
+      for (let i = 0; i < entries; i++){
+        const c = dv.getUint32(stts.dataStart + 8 + i * 8);
+        const d = dv.getUint32(stts.dataStart + 12 + i * 8);
+        if (c > bestCount){ bestCount = c; bestDelta = d; }
+      }
+      if (!bestDelta || !timescale) return null;
+      const raw = timescale / bestDelta;
+      for (const t of FPS_TABLE) if (Math.abs(raw - t) <= 0.5) return t;   // snap 常見值(±0.5 涵蓋 23.976/29.97/59.94)
+      return Math.round(raw * 100) / 100;                       // 表外用實際值
+    }
+    return null;
+  }catch(_){ return null; }                                     // 任何 throw 都不冒到 UI
+}
 
 /* ======================= SCREENS ======================= */
 function showScreen(s){
@@ -298,18 +504,176 @@ function showScreen(s){
   $("screenS3").classList.toggle("hidden", s !== "S3");
 }
 
+/* ======================= LIBRARY (S1) ======================= */
+function renderLibrary(){
+  pendingDel = null;                                             // 重繪會重置 X 鈕視覺,狀態必須跟著歸零,否則單擊誤刪
+  const staleThumbUrls = thumbUrls; thumbUrls = [];
+  const grid = $("libGrid"); grid.innerHTML = "";
+  staleThumbUrls.forEach(u => URL.revokeObjectURL(u));           // 舊 img 先離場(innerHTML 清空)才 revoke,否則對死 URL 噴 console error
+  const has = clips.length > 0;
+  $("libEmpty").classList.toggle("hidden", has);
+  $("libFull").classList.toggle("hidden", !has);
+  if (!has) return;
+  clips.forEach(rec => {
+    const card = document.createElement("div"); card.className = "clip-card";
+    const th = document.createElement("div"); th.className = "clip-thumb";
+    if (rec.vw && rec.vh) th.style.aspectRatio = rec.vw + "/" + rec.vh;
+    if (rec.thumb){ const u = URL.createObjectURL(rec.thumb); thumbUrls.push(u);
+      const img = document.createElement("img"); img.src = u; img.alt = ""; th.appendChild(img); }
+    const nm = document.createElement("div"); nm.className = "clip-name"; nm.textContent = rec.name;
+    const meta = document.createElement("div"); meta.className = "clip-meta";
+    meta.textContent = fmtDur(rec.dur) + " · " + rec.fps + " fps";
+    const x = document.createElement("button"); x.className = "clip-x";
+    x.innerHTML = '<span class="material-symbols-outlined">close</span>';
+    th.addEventListener("click", () => openClip(rec.id));
+    nm.addEventListener("click", e => { e.stopPropagation(); startRename(rec, nm); });
+    x.addEventListener("click", e => { e.stopPropagation(); confirmDelete(rec, x); });
+    card.appendChild(th); card.appendChild(nm); card.appendChild(meta); card.appendChild(x);
+    grid.appendChild(card);
+  });
+}
+function startRename(rec, nmEl){
+  const inp = document.createElement("input"); inp.className = "clip-name-input"; inp.value = rec.name;
+  nmEl.replaceWith(inp); inp.focus(); inp.select();
+  const done = () => { rec.name = inp.value.trim() || rec.name; persistSoon(rec); renderLibrary(); };
+  inp.addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDefault(); inp.blur(); } });
+  inp.addEventListener("blur", done, { once: true });
+}
+function confirmDelete(rec, xEl){                                // 兩段式:第一下變「確認?」,再點才刪
+  if (pendingDel && pendingDel.rec === rec){ clearPendingDel(); doDelete(rec); return; }
+  clearPendingDel();
+  xEl.classList.add("confirm"); xEl.innerHTML = '<span class="del-confirm">確認?</span>';
+  pendingDel = { rec, xEl };
+}
+function clearPendingDel(){
+  if (!pendingDel) return;
+  pendingDel.xEl.classList.remove("confirm");
+  pendingDel.xEl.innerHTML = '<span class="material-symbols-outlined">close</span>';
+  pendingDel = null;
+}
+async function doDelete(rec){
+  cancelPendingSave(rec);                                        // 否則排隊中的 debounce 寫入會讓已刪 clip 復活
+  if (!rec.memoryOnly && idbAvailable){ try{ await idbDelete(rec.id); }catch(_){} }
+  const wasCur = rec.id === curId;
+  if (wasCur){ curId = null; video.removeAttribute("src"); video.load(); }   // 先解除引用再 revoke
+  if (rec.url) URL.revokeObjectURL(rec.url);
+  clips = clips.filter(c => c.id !== rec.id);
+  renderLibrary();
+  if (wasCur) showScreen("S1");                                 // 刪目前開啟的 clip → 回片庫
+}
+function backToLibrary(){
+  if (!video.paused) video.pause();
+  flushPendingSave();
+  closeClipUrl();
+  showScreen("S1"); renderLibrary();
+}
+function setIdbWarn(){
+  const off = !idbAvailable;
+  $("idbWarnTop").classList.toggle("hidden", !off);
+  const w = $("idbWarn");
+  if (off){ $("idbWarnText").textContent = "本機儲存不可用,影片離開後不保留"; w.classList.remove("hidden"); }
+  else if (!w.dataset.quota) w.classList.add("hidden");
+}
+function showQuotaWarn(){                                        // 配額不足:此片僅本次可用
+  showStageMsg("儲存空間不足,此片僅本次可用");
+  setTimeout(hideStageMsg, 2600);
+  const w = $("idbWarn"); w.dataset.quota = "1";
+  $("idbWarnText").textContent = "儲存空間不足,部分影片僅本次可用"; w.classList.remove("hidden");
+}
+
+/* ======================= CLIP open / add / thumb / save ======================= */
+function closeClipUrl(){
+  const c = clips.find(x => x.id === curId);
+  if (c && c.url){
+    if (video.src === c.url){ video.removeAttribute("src"); video.load(); }  // 先解除 video 引用再 revoke,免噴 ERR_FILE_NOT_FOUND
+    URL.revokeObjectURL(c.url); c.url = null;
+  }
+}
+function openClip(id){
+  const rec = clips.find(c => c.id === id); if (!rec) return;
+  flushPendingSave();                                           // 前一支的 pending 寫入先落地
+  closeClipUrl();                                               // revoke 前一個
+  curId = id;
+  rec.url = URL.createObjectURL(rec.blob);
+  resetABAndZoom();
+  fps = rec.fps || 30; fpsManual = !!rec.fpsManual;
+  trimIn = rec.trimIn || 0; trimOut = rec.trimOut != null ? rec.trimOut : 0;
+  containerFpsResolved = false; trimBarOpen = false;
+  fpsSamples = [];
+  if (!video.paused) video.pause();
+  seeking = false; seekTarget = null; hudOverride = null;       // 不重置會讓逐格永久卡死
+  hideStageMsg();
+  video.src = rec.url; video.load();
+  showScreen("S3");
+  updateFpsChip(); updateTrimUI();
+  if (!fpsManual) tryContainerFps(rec);                         // 優先序:fpsManual > 容器 > rVFC
+}
+async function tryContainerFps(rec){
+  const f = await parseMp4Fps(rec.blob);                        // 已內含 try/catch,回 null 不炸
+  if (f && curId === rec.id && !fpsManual){
+    containerFpsResolved = true;                                // 解析成功 → 停用該片 rVFC 自動套用
+    if (f !== fps) { setFps(f); flashAutoChip(); }
+    if (rec.fps !== f){ rec.fps = f; persistSoon(rec); }
+  }
+}
+function makeThumb(blob){                                        // 載入 metadata 後 seek 中點抓 canvas(短邊 ≤240,jpeg .7)
+  return new Promise(res => {
+    const v = document.createElement("video");
+    v.preload = "metadata"; v.muted = true; v.playsInline = true;
+    const url = URL.createObjectURL(blob); let done = false;
+    const finish = val => { if (done) return; done = true;
+      try{ v.removeAttribute("src"); v.load(); }catch(_){}       // 先斷媒體管線再 revoke,否則殘留 range 請求噴 ERR_FILE_NOT_FOUND
+      URL.revokeObjectURL(url); res(val); };
+    setTimeout(() => finish({ thumb: null, dur: v.duration || 0 }), 3000);   // 畸形檔不觸發任何事件時的保險
+
+    v.onloadedmetadata = () => { try{
+        v.currentTime = clamp(v.duration / 2, 0, Math.max(0, (v.duration || 0) - 0.05));
+      }catch(_){ finish({ thumb: null, dur: v.duration || 0 }); } };
+    v.onseeked = () => { try{
+        const w = v.videoWidth, h = v.videoHeight, scale = Math.min(1, 240 / Math.min(w, h));
+        const cw = Math.max(1, Math.round(w * scale)), ch = Math.max(1, Math.round(h * scale));
+        const c = document.createElement("canvas"); c.width = cw; c.height = ch;
+        c.getContext("2d").drawImage(v, 0, 0, cw, ch);
+        c.toBlob(b => finish({ thumb: b, dur: v.duration || 0, vw: w, vh: h }), "image/jpeg", 0.7);
+      }catch(_){ finish({ thumb: null, dur: v.duration || 0 }); } };
+    v.onerror = () => finish({ thumb: null, dur: 0 });
+    v.src = url;
+  });
+}
+async function addClip(blob, name){
+  const [info, pf] = await Promise.all([makeThumb(blob), parseMp4Fps(blob).catch(() => null)]);
+  const f = pf || 30, dur = info.dur || 0;
+  const total = Math.max(1, Math.floor(dur * f));
+  const rec = { name: name || ("Clip " + (clips.length + 1)), blob, thumb: info.thumb,
+    fps: f, fpsManual: false, trimIn: 0, trimOut: total - 1, dur,
+    vw: info.vw || 0, vh: info.vh || 0, created: Date.now() };
+  if (idbAvailable){
+    try{ rec.id = await idbPut(rec); }
+    catch(err){ rec.memoryOnly = true; rec.id = "m" + Date.now();
+      if (err && err.name === "QuotaExceededError") showQuotaWarn(); }
+  } else { rec.memoryOnly = true; rec.id = "m" + Date.now(); }
+  clips.unshift(rec);
+  renderLibrary();
+  openClip(rec.id);
+}
+function saveClip(){                                             // 下載原始 blob(裁切非破壞,存的是原檔)
+  const rec = curClip(); if (!rec) return;
+  const ext = rec.blob.type.includes("webm") ? "webm" : "mp4";
+  const url = rec.url || URL.createObjectURL(rec.blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "frameref_" + tsStamp() + "." + ext;
+  document.body.appendChild(a); a.click(); a.remove();
+  if (!rec.url) URL.revokeObjectURL(url);
+}
+
 /* ======================= CAMERA (S2) ======================= */
 async function enterCamera(){
-  showScreen("S2");
-  hideCamErr();
-  // 非 secure context / 無 mediaDevices:進 S2 前就擋,不呼叫 getUserMedia
+  showScreen("S2"); hideCamErr();
   if (!window.isSecureContext){
-    showCamErr("頁面內錄影需要 HTTPS;請用「載入影片」,或等部署到 HTTPS 網址");
-    return;
+    showCamErr("頁面內錄影需要 HTTPS;請用「載入影片」,或等部署到 HTTPS 網址"); return;
   }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-    showCamErr("此瀏覽器不支援頁面內相機,請改用「載入影片」");
-    return;
+    showCamErr("此瀏覽器不支援頁面內相機,請改用「載入影片」"); return;
   }
   await startStream();
 }
@@ -317,29 +681,21 @@ async function startStream(){
   stopStream();
   try{
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: facing, width: { ideal: 1920 }, frameRate: { ideal: 60 } },
-      audio: true
-    });
+      video: { facingMode: facing, width: { ideal: 1920 }, frameRate: { ideal: 60 } }, audio: true });
     $("camVideo").srcObject = stream;
     $("camVideo").play().catch(()=>{});
-    // 前鏡頭預覽 CSS 鏡像;錄出的檔不鏡像
-    $("camVideo").style.transform = facing === "user" ? "scaleX(-1)" : "none";
+    $("camVideo").style.transform = facing === "user" ? "scaleX(-1)" : "none";  // 前鏡預覽鏡像,錄檔不鏡像
     hideCamErr();
   }catch(err){
     if (err.name === "NotAllowedError")
       showCamErr("相機權限被拒——到 iOS 設定 > Safari > 相機 允許,或改用「載入影片」");
-    else
-      showCamErr("相機錯誤:" + err.name);
+    else showCamErr("相機錯誤:" + err.name);
   }
 }
-function stopStream(){
-  if (stream){ stream.getTracks().forEach(t => t.stop()); stream = null; }
-}
+function stopStream(){ if (stream){ stream.getTracks().forEach(t => t.stop()); stream = null; } }
 function showCamErr(msg){ const el = $("camErr"); el.textContent = msg; el.classList.remove("hidden"); }
 function hideCamErr(){ $("camErr").classList.add("hidden"); }
-
 function pickMime(){
-  // iOS 產 mp4、桌面 Chrome 產 webm — cascade 必做
   const cands = ["video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9", "video/webm"];
   if (!window.MediaRecorder) return "";
   for (const c of cands) if (MediaRecorder.isTypeSupported(c)) return c;
@@ -347,124 +703,46 @@ function pickMime(){
 }
 function onRecPress(){
   if (recorder && recorder.state === "recording"){ stopRec(); return; }
-  if (countdown3) runCountdown(startRec);
-  else startRec();
+  if (cdIv){ clearInterval(cdIv); cdIv = null; hideBigCount(); return; }   // 倒數中按 REC = 取消倒數,防重入孤兒 recorder
+  if (countdown3) runCountdown(startRec); else startRec();
 }
 function runCountdown(done){
   let n = 3; showBigCount(n);
-  cdIv = setInterval(() => {
-    n--;
-    if (n <= 0){ clearInterval(cdIv); cdIv = null; hideBigCount(); done(); }
-    else showBigCount(n);
-  }, 1000);
+  cdIv = setInterval(() => { n--;
+    if (n <= 0){ clearInterval(cdIv); cdIv = null; hideBigCount(); done(); } else showBigCount(n); }, 1000);
 }
 function showBigCount(n){ const el = $("bigCount"); el.textContent = n; el.classList.remove("hidden"); }
 function hideBigCount(){ $("bigCount").classList.add("hidden"); }
-
 function startRec(){
   if (!stream) return;
-  chunks = [];
-  const mime = pickMime();
-  try{
-    recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
-  }catch(e){ showCamErr("錄影不支援:" + e.name); return; }
+  chunks = []; const mime = pickMime();
+  try{ recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream); }
+  catch(e){ showCamErr("錄影不支援:" + e.name); return; }
   recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
-  recorder.onstop = () => {
-    const type = recorder.mimeType || mime || "video/mp4";
-    onNewRecording(new Blob(chunks, { type }));
-  };
-  recorder.start();          // 不給 timeslice
-  recStart = Date.now();
-  recTimerIv = setInterval(updateRecTimer, 200);
-  setRecUI(true);
+  recorder.onstop = () => { const type = recorder.mimeType || mime || "video/mp4";
+    onNewRecording(new Blob(chunks, { type })); };
+  recorder.start(); recStart = Date.now();
+  recTimerIv = setInterval(updateRecTimer, 200); setRecUI(true);
 }
 function stopRec(){
   if (recorder && recorder.state !== "inactive") recorder.stop();
-  clearInterval(recTimerIv); recTimerIv = null;
-  setRecUI(false);
+  clearInterval(recTimerIv); recTimerIv = null; setRecUI(false);
 }
-function updateRecTimer(){
-  const s = (Date.now() - recStart) / 1000;
-  $("recTime").textContent = fmtDur(s);
-}
+function updateRecTimer(){ $("recTime").textContent = fmtDur((Date.now() - recStart) / 1000); }
 function setRecUI(on){
   $("btnRec").classList.toggle("recording", on);
   $("recTime").classList.toggle("hidden", !on);
   if (on) $("recTime").textContent = "0:00";
 }
-function onNewRecording(blob){
-  stopStream();
-  addTake(blob, null);          // null name -> "Take N"
-  loadTake(takes.length - 1);   // 切到 S3、停第 0 幀
-}
+function onNewRecording(blob){ stopStream(); addClip(blob, null); }   // 錄完自動存片庫 + 直接開播放器
 
-/* ======================= TAKES ======================= */
-function addTake(blob, name){
-  const url = URL.createObjectURL(blob);
-  takes.push({ url, blob, name: name || ("Take " + (takes.length + 1)), dur: 0 });
-  renderTakes();
-}
-function loadTake(i){
-  if (i < 0 || i >= takes.length) return;
-  currentTake = i;
-  resetABAndZoom();
-  // 載入新 take 重置 fps 偵測與手動旗標
-  fpsManual = false; fpsSamples = []; fps = 30; updateFpsChip();
-  if (!video.paused) video.pause();
-  // video.load() 會吞掉進行中的 seek(不發 seeked),不重置這三個會讓逐格永久卡死
-  seeking = false; seekTarget = null; hudOverride = null;
-  hideStageMsg();
-  video.src = takes[i].url;
-  video.load();
-  showScreen("S3");
-  renderTakes();
-}
-function deleteTake(i){
-  URL.revokeObjectURL(takes[i].url);           // 刪除即 revoke,無洩漏
-  const wasCurrent = i === currentTake;
-  takes.splice(i, 1);
-  if (takes.length === 0){
-    currentTake = -1;
-    video.removeAttribute("src"); video.load();
-    renderTakes(); showScreen("S1"); return;
-  }
-  if (wasCurrent){ currentTake = clamp(i, 0, takes.length - 1); loadTake(currentTake); }
-  else { if (i < currentTake) currentTake--; renderTakes(); }
-}
-function renderTakes(){
-  if (takes.length === 0){ $("takesRow").classList.add("hidden"); $("takesRow").innerHTML = ""; return; }
-  const row = $("takesRow");
-  row.classList.remove("hidden");
-  row.innerHTML = "";
-  takes.forEach((t, i) => {
-    const chip = document.createElement("div");
-    chip.className = "take-chip" + (i === currentTake ? " active" : "");
-    const nm = document.createElement("span");
-    nm.className = "take-name"; nm.textContent = t.name + " · " + fmtDur(t.dur);
-    const x = document.createElement("span");
-    x.className = "take-x"; x.textContent = "✕";
-    nm.addEventListener("click", () => { if (i !== currentTake) loadTake(i); }); // 切換時 loadTake 會 pause+A/B 重置
-    x.addEventListener("click", e => { e.stopPropagation(); deleteTake(i); });
-    chip.appendChild(nm); chip.appendChild(x);
-    row.appendChild(chip);
-  });
-}
-function saveTake(){
-  if (currentTake < 0) return;
-  const t = takes[currentTake];
-  const ext = t.blob.type.includes("webm") ? "webm" : "mp4";
-  const a = document.createElement("a");
-  a.href = t.url; a.download = "frameref_" + tsStamp() + "." + ext;
-  document.body.appendChild(a); a.click(); a.remove();
-}
-
-/* ======================= ENGINE (逐格 / seek) ======================= */
+/* ======================= ENGINE (逐格 / seek;內部一律絕對幀) ======================= */
 function seekToFrame(idx){
   if (!video.duration || !isFinite(video.duration)) return;
-  idx = clamp(idx, 0, totalFrames - 1);
+  idx = clamp(idx, trimIn, trimOut);                            // 裁切 clamp(隨時生效)
   frameTarget = idx;
   hudOverride = idx; updateHUD();
-  let t = (idx + 0.5) / fps;                 // 取幀中點避免邊界抖動
+  let t = (idx + 0.5) / fps;                                    // 幀中點避免邊界抖動
   t = Math.min(t, video.duration - 0.001);
   seekTarget = t;
   if (!seeking){ seeking = true; doSeek(); }
@@ -472,64 +750,112 @@ function seekToFrame(idx){
 function doSeek(){
   if (seekTarget == null){ seeking = false; return; }
   const t = seekTarget; seekTarget = null;
-  video.currentTime = t;                     // 不用 fastSeek(會 snap keyframe)
+  video.currentTime = t;                                        // 不用 fastSeek(會 snap keyframe)
 }
 function step(n){
   if (!video.paused) video.pause();
-  // 播放中 frameTarget 會過時 → 非 seek 狀態用 live frame 當基準;連打(seek 中)才用 frameTarget
-  const base = seeking ? frameTarget : currentFrame();
+  const base = seeking ? frameTarget : currentFrame();          // 連打(seek 中)用 frameTarget,否則用 live frame
   seekToFrame(base + n);
 }
 function setFps(f){
+  const old = fps;
+  const wasFull = (trimIn === 0 && trimOut === Math.max(0, totalFrames - 1));
   fps = f;
   if (video.duration && isFinite(video.duration)){
     totalFrames = Math.max(1, Math.floor(video.duration * fps));
-    slider.max = totalFrames - 1;
+    if (wasFull){ trimIn = 0; trimOut = totalFrames - 1; }      // 未裁切 → 換 fps 仍為整段
+    else {                                                      // 已裁切 → 依時間點重算絕對幀,保住裁切窗
+      trimIn = clamp(Math.round(trimIn / old * fps), 0, totalFrames - 1);
+      trimOut = clamp(Math.round(trimOut / old * fps), 0, totalFrames - 1);
+      if (trimOut <= trimIn) trimOut = totalFrames - 1;
+    }
+    slider.min = trimIn; slider.max = trimOut;
   }
-  frameTarget = currentFrame();              // 保持目前時間點,重算 frameIdx
-  // A/B 秒數不變,幀號要跟新 fps 重算,否則標記位置與文字全錯
-  if (tA != null) fA = clamp(Math.floor(tA * fps), 0, totalFrames - 1);
+  frameTarget = clamp(currentFrame(), trimIn, trimOut);
+  if (tA != null) fA = clamp(Math.floor(tA * fps), 0, totalFrames - 1);   // A/B 秒數不變,幀號隨 fps 重算
   if (tB != null) fB = clamp(Math.floor(tB * fps), 0, totalFrames - 1);
-  updateFpsChip(); renderAB(); updateHUD();
+  // 重算後的 fps/trim 必須寫回紀錄,否則 persist 到的是舊幀基準(rVFC 晚到型 bug:後半支片被舊 trimOut 吃掉)
+  const srec = curClip();
+  if (srec && (srec.fps !== fps || srec.trimIn !== trimIn || srec.trimOut !== trimOut)){
+    srec.fps = fps; srec.trimIn = trimIn; srec.trimOut = trimOut; persistSoon(srec);
+  }
+  updateFpsChip(); renderAB(); updateTrimUI(); updateHUD();
 }
 
-/* fps 自動偵測(僅 rVFC 環境) */
+/* ======================= TRIM (非破壞裁切) ======================= */
+/* 註:slider.min/max 直接綁 trimIn/trimOut(規格明訂),故被裁掉的頭尾在 slider 上「不存在」、
+   無從遮罩。因此把「頭尾遮罩 + IN/OUT 標記」做成一條獨立的全時間軸總覽(trim-overlay),
+   只在裁切列開著時顯示 — 這是調解「slider 綁 trim」與「頭尾畫遮罩」兩條指令的唯一自洽解。 */
+function toggleTrimBar(){ trimBarOpen = !trimBarOpen; updateTrimUI(); }
+function setTrimIn(){
+  trimIn = Math.min(clamp(seeking ? frameTarget : currentFrame(), 0, totalFrames - 1), trimOut);
+  clampABIntoTrim(); applyTrim();
+}
+function setTrimOut(){
+  trimOut = Math.max(clamp(seeking ? frameTarget : currentFrame(), 0, totalFrames - 1), trimIn);
+  clampABIntoTrim(); applyTrim();
+}
+function resetTrim(){ trimIn = 0; trimOut = Math.max(0, totalFrames - 1); clampABIntoTrim(); applyTrim(); }
+function applyTrim(){
+  slider.min = trimIn; slider.max = trimOut;
+  seekToFrame(clamp(seeking ? frameTarget : currentFrame(), trimIn, trimOut));
+  const rec = curClip(); if (rec){ rec.trimIn = trimIn; rec.trimOut = trimOut; persistSoon(rec); }
+  updateTrimUI(); renderAB(); updateHUD();
+}
+function clampABIntoTrim(){                                      // A/B 落在裁切區外 → clamp 進來(移動,不清除)
+  if (fA != null){ fA = clamp(fA, trimIn, trimOut); tA = (fA + 0.5) / fps; }
+  if (fB != null){ fB = clamp(fB, trimIn, trimOut); tB = (fB + 0.5) / fps; }
+  normalizeAB();
+}
+function updateTrimUI(){
+  $("btnTrim").classList.toggle("active", trimBarOpen);
+  $("trimBar").classList.toggle("hidden", !trimBarOpen);
+  $("trimOverlay").classList.toggle("hidden", !trimBarOpen);
+  $("trimHud").classList.toggle("hidden", !trimBarOpen);
+  if (trimBarOpen){
+    $("trimHud").textContent = "IN#" + trimIn + " OUT#" + trimOut;
+    const last = Math.max(1, totalFrames - 1);
+    const inPct = (trimIn / last) * 100, outPct = (trimOut / last) * 100;
+    $("trimHead").style.width = inPct + "%";
+    $("trimTail").style.left = outPct + "%"; $("trimTail").style.width = (100 - outPct) + "%";
+    $("trimMarkIn").style.left = inPct + "%";
+    $("trimMarkOut").style.left = outPct + "%";
+  }
+}
+
+/* ======================= FPS auto (rVFC fallback;僅容器解析失敗時作用) ======================= */
 function collectFpsSample(md){
-  if (video.paused) return;
+  if (video.paused || containerFpsResolved || fpsManual) return;
   if (md == null || md.mediaTime == null || md.presentedFrames == null) return;
   fpsSamples.push({ t: md.mediaTime, p: md.presentedFrames });
   if (fpsSamples.length >= 20){
     const a = fpsSamples[0], b = fpsSamples[fpsSamples.length - 1];
-    const dp = b.p - a.p, dt = b.t - a.t;    // presentedFrames 可能不連續,只算比率
-    if (dt > 0 && dp > 0){
-      const guess = nearestFps(dp / dt);
-      if (guess) applyAutoFps(guess);
-    }
+    const dp = b.p - a.p, dt = b.t - a.t;                       // presentedFrames 可能不連續,只算比率
+    if (dt > 0 && dp > 0){ const guess = nearestFps(dp / dt); if (guess) applyAutoFps(guess); }
     fpsSamples = [];
   }
 }
 function nearestFps(rate){
   let best = null, bd = Infinity;
   for (const f of FPS_TABLE){ const d = Math.abs(f - rate); if (d < bd){ bd = d; best = f; } }
-  return bd <= 2 ? best : null;              // 容差 ±2(涵蓋 23.976/29.97/59.94)
+  return bd <= 2 ? best : null;
 }
 function applyAutoFps(f){
-  if (fpsManual) return;                     // 手動選過就不套用
-  if (f === fps) return;
+  if (fpsManual || containerFpsResolved || f === fps) return;
   setFps(f); flashAutoChip();
+  const rec = curClip(); if (rec){ rec.fps = f; persistSoon(rec); }
 }
 
-/* ======================= HUD ======================= */
+/* ======================= HUD (顯示層相對幀) ======================= */
 function updateHUD(){
-  const f = hudOverride != null ? hudOverride : currentFrame();
-  $("frameNum").textContent = "#" + String(f).padStart(4, "0");
-  $("timecode").textContent = fmtTC(f) + " / " + fmtTC(Math.max(0, totalFrames - 1));
-  if (!scrubbing) slider.value = f;
+  const absF = clamp(hudOverride != null ? hudOverride : currentFrame(), trimIn, trimOut);
+  $("frameNum").textContent = "#" + String(dispFrame(absF)).padStart(4, "0");
+  $("timecode").textContent = fmtTC(dispFrame(absF)) + " / " + fmtTC(dispTotal() - 1);
+  if (!scrubbing) slider.value = absF;
 }
 function updateFpsChip(){ $("btnFps").innerHTML = fps + '<span class="fps-unit">fps</span>'; }
 function flashAutoChip(){
-  const b = $("btnFps");
-  b.classList.add("auto");
+  const b = $("btnFps"); b.classList.add("auto");
   b.innerHTML = "auto " + fps + '<span class="fps-unit">fps</span>';
   setTimeout(() => { b.classList.remove("auto"); updateFpsChip(); }, 1200);
 }
@@ -538,14 +864,10 @@ function hideStageMsg(){ $("stageMsg").classList.add("hidden"); }
 
 /* ======================= PLAYBACK / A-B / SPEED / MIRROR ======================= */
 function togglePlay(){ if (video.paused) video.play().catch(()=>{}); else video.pause(); }
-function setPlayUI(on){
-  $("btnPlay").querySelector(".material-symbols-outlined").textContent = on ? "pause" : "play_arrow";
-}
-function normalizeAB(){                        // B≤A 自動交換
-  if (fA != null && fB != null && fA > fB){ [fA, fB] = [fB, fA]; [tA, tB] = [tB, tA]; }
-}
-function setA(){ fA = currentFrame(); tA = (fA + 0.5) / fps; normalizeAB(); renderAB(); }
-function setB(){ fB = currentFrame(); tB = (fB + 0.5) / fps; normalizeAB(); renderAB(); }
+function setPlayUI(on){ $("btnPlay").querySelector(".material-symbols-outlined").textContent = on ? "pause" : "play_arrow"; }
+function normalizeAB(){ if (fA != null && fB != null && fA > fB){ [fA, fB] = [fB, fA]; [tA, tB] = [tB, tA]; } }
+function setA(){ fA = clamp(currentFrame(), trimIn, trimOut); tA = (fA + 0.5) / fps; normalizeAB(); renderAB(); }
+function setB(){ fB = clamp(currentFrame(), trimIn, trimOut); tB = (fB + 0.5) / fps; normalizeAB(); renderAB(); }
 function clearAB(){ fA = fB = tA = tB = null; renderAB(); }
 function renderAB(){
   $("btnA").classList.toggle("set", fA != null);
@@ -556,21 +878,26 @@ function renderAB(){
   const at = $("abText");
   if (fA != null || fB != null){
     at.classList.remove("hidden");
-    at.innerHTML = "A#" + (fA == null ? "–" : fA) + "–B#" + (fB == null ? "–" : fB) +
-                   ' <span class="ab-clear">✕</span>';
+    at.innerHTML = "A#" + (fA == null ? "–" : dispFrame(fA)) + "–B#" + (fB == null ? "–" : dispFrame(fB)) +
+                   ' <span class="ab-clear material-symbols-outlined">close</span>';
     at.querySelector(".ab-clear").addEventListener("click", clearAB);
   } else at.classList.add("hidden");
 }
-function makeMarker(f, label){
-  const pct = totalFrames > 1 ? (f / (totalFrames - 1)) * 100 : 0;
-  const el = document.createElement("div");
-  el.className = "ab-marker"; el.style.left = pct + "%";
-  el.innerHTML = '<span class="ab-tri"></span><span class="ab-lbl">' + label + "#" + f + "</span>";
+function makeMarker(f, label){                                  // 位置沿裁切窗,文字用相對幀
+  const span = Math.max(1, trimOut - trimIn);
+  const pct = clamp((f - trimIn) / span, 0, 1) * 100;
+  const el = document.createElement("div"); el.className = "ab-marker"; el.style.left = pct + "%";
+  el.innerHTML = '<span class="ab-tri"></span><span class="ab-lbl">' + label + "#" + dispFrame(f) + "</span>";
   return el;
 }
-function loopCheck(){
-  if (!loopEnabled || video.paused) return;
-  if (tA != null && tB != null && video.currentTime >= tB) video.currentTime = tA;
+function loopCheck(){                                            // 裁切 + A-B 邊界(播放中每幀/或 timeupdate 檢查)
+  if (video.paused) return;
+  const t = video.currentTime;
+  if (loopEnabled && tA != null && tB != null){ if (t >= tB) video.currentTime = tA; return; }
+  if (t >= (trimOut + 1) / fps - 1e-4){                         // 播放到 trimOut 末端
+    if (loopEnabled) video.currentTime = (trimIn + 0.5) / fps;  // loop on → 回 trimIn(無 A/B 時)
+    else { video.pause(); seekToFrame(trimOut); }               // loop off → 停在 trimOut
+  }
 }
 function toggleLoop(){ loopEnabled = !loopEnabled; $("btnLoop").classList.toggle("active", loopEnabled); }
 function cycleSpeed(){
@@ -582,20 +909,17 @@ function toggleMirror(){ mirror = !mirror; applyTransform(); $("btnMirror").clas
 
 /* ======================= TRANSFORM (zoom/pan/mirror) ======================= */
 function applyTransform(){
-  // mirror 放最外層、zoom/pan 放內層:鏡像時 pan 座標數學不用改
-  mirrorWrap.style.transform = mirror ? "scaleX(-1)" : "none";
+  mirrorWrap.style.transform = mirror ? "scaleX(-1)" : "none";  // mirror 最外層,pan 座標數學不用改
   zoomWrap.style.transform = "translate(" + panX + "px," + panY + "px) scale(" + zoom + ")";
 }
 function clampPanX(x){ const m = (zoom - 1) * stage.clientWidth / 2; return clamp(x, -m, m); }
 function clampPanY(y){ const m = (zoom - 1) * stage.clientHeight / 2; return clamp(y, -m, m); }
 function resetABAndZoom(){ clearAB(); zoom = 1; panX = 0; panY = 0; applyTransform(); }
-// 以 anchor(螢幕座標)為錨縮放:t' = r*t0 + d*(1-r)
-function applyZoomAt(z, anchor, startZoom, startPan){
+function applyZoomAt(z, anchor, startZoom, startPan){           // 以 anchor 為錨:t' = r*t0 + d*(1-r)
   const rect = stage.getBoundingClientRect();
   const Ox = rect.left + rect.width / 2, Oy = rect.top + rect.height / 2;
-  let dx = anchor.x - Ox; if (mirror) dx = -dx;      // 外層鏡像 → 內層 x 相反
-  const dy = anchor.y - Oy;
-  const r = z / startZoom;
+  let dx = anchor.x - Ox; if (mirror) dx = -dx;                 // 外層鏡像 → 內層 x 相反
+  const dy = anchor.y - Oy, r = z / startZoom;
   zoom = z;
   if (zoom <= 1.0001){ zoom = 1; panX = 0; panY = 0; }
   else { panX = clampPanX(r * startPan.x + dx * (1 - r)); panY = clampPanY(r * startPan.y + dy * (1 - r)); }
@@ -613,7 +937,7 @@ function onPointerDown(e){
   try{ stage.setPointerCapture(e.pointerId); }catch(_){}
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (pointers.size === 1){
-    if (!video.paused) video.pause();                // pointerdown 即 pause
+    if (!video.paused) video.pause();                          // pointerdown 即 pause
     handleDoubleTap(e);
     gMode = zoom > 1 ? "pan" : "jog";
     gStart = { x: e.clientX, y: e.clientY, frame: seeking ? frameTarget : currentFrame(), panX, panY };
@@ -621,9 +945,8 @@ function onPointerDown(e){
     gMode = "pinch";
     const p = [...pointers.values()];
     pinchStartDist = dist(p[0], p[1]) || 1;
-    pinchStartZoom = zoom;
-    pinchStartPan = { x: panX, y: panY };
-    pinchMid = mid(p[0], p[1]);                      // 錨定起始中點,穩定
+    pinchStartZoom = zoom; pinchStartPan = { x: panX, y: panY };
+    pinchMid = mid(p[0], p[1]);
   }
 }
 function onPointerMove(e){
@@ -631,19 +954,16 @@ function onPointerMove(e){
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (gMode === "pinch" && pointers.size >= 2){
     const p = [...pointers.values()];
-    const z = clamp(pinchStartZoom * (dist(p[0], p[1]) / pinchStartDist), 1, 6);
-    applyZoomAt(z, pinchMid, pinchStartZoom, pinchStartPan);
+    applyZoomAt(clamp(pinchStartZoom * (dist(p[0], p[1]) / pinchStartDist), 1, 6), pinchMid, pinchStartZoom, pinchStartPan);
   } else if (gMode === "pan"){
     let dx = e.clientX - gStart.x; const dy = e.clientY - gStart.y;
     if (mirror) dx = -dx;
-    panX = clampPanX(gStart.panX + dx);
-    panY = clampPanY(gStart.panY + dy);
-    applyTransform();
+    panX = clampPanX(gStart.panX + dx); panY = clampPanY(gStart.panY + dy); applyTransform();
   } else if (gMode === "jog"){
-    // 每 10px 一幀,直接映射(無漂移、無慣性);rAF 節流
-    pendingJogFrame = clamp(gStart.frame + Math.round((e.clientX - gStart.x) / 10), 0, totalFrames - 1);
+    // 每 10px 一幀,直接映射(無漂移、無慣性);rAF 節流;seekToFrame 內 clamp 到裁切窗
+    pendingJogFrame = clamp(gStart.frame + Math.round((e.clientX - gStart.x) / 10), trimIn, trimOut);
     if (!jogRAF) jogRAF = requestAnimationFrame(() => {
-      jogRAF = null; if (gMode === "jog" && pendingJogFrame != null) seekToFrame(pendingJogFrame);  // 已轉 pinch 的過期 rAF 不 seek
+      jogRAF = null; if (gMode === "jog" && pendingJogFrame != null) seekToFrame(pendingJogFrame);
     });
   }
 }
@@ -654,23 +974,20 @@ function onPointerUp(e){
     const p = [...pointers.values()][0];
     gMode = zoom > 1 ? "pan" : "jog";
     gStart = { x: p.x, y: p.y, frame: seeking ? frameTarget : currentFrame(), panX, panY };
-  } else if (pointers.size === 0){
-    gMode = "none";
-  }
+  } else if (pointers.size === 0){ gMode = "none"; }
 }
 function handleDoubleTap(e){
   const now = Date.now();
   if (now - lastTap < 300 && lastTapPos &&
       Math.hypot(e.clientX - lastTapPos.x, e.clientY - lastTapPos.y) < 30){
-    if (zoom > 1){ zoom = 1; panX = 0; panY = 0; applyTransform(); }         // 重置
-    else applyZoomAt(2, { x: e.clientX, y: e.clientY }, 1, { x: 0, y: 0 });  // 以點按處為中心 zoom 2
+    if (zoom > 1){ zoom = 1; panX = 0; panY = 0; applyTransform(); }
+    else applyZoomAt(2, { x: e.clientX, y: e.clientY }, 1, { x: 0, y: 0 });
     lastTap = 0; lastTapPos = null;
   } else { lastTap = now; lastTapPos = { x: e.clientX, y: e.clientY }; }
 }
 function onWheel(e){
   e.preventDefault();
-  const z = clamp(zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1), 1, 6);
-  applyZoomAt(z, { x: e.clientX, y: e.clientY }, zoom, { x: panX, y: panY });
+  applyZoomAt(clamp(zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1), 1, 6), { x: e.clientX, y: e.clientY }, zoom, { x: panX, y: panY });
 }
 
 /* ======================= WAKE LOCK ======================= */
@@ -678,20 +995,25 @@ async function requestWakeLock(){
   try{ if (navigator.wakeLock) wakeLock = await navigator.wakeLock.request("screen"); }catch(_){}
 }
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && currentTake >= 0) requestWakeLock();
+  if (document.visibilityState === "visible" && curId != null) requestWakeLock();
 });
 
 /* ======================= VIDEO EVENTS ======================= */
 video.addEventListener("loadedmetadata", () => {
-  if (currentTake >= 0) takes[currentTake].dur = video.duration;
+  const rec = curClip();
   totalFrames = Math.max(1, Math.floor(video.duration * fps));
-  slider.max = totalFrames - 1;
+  if (rec){
+    if (rec.dur !== video.duration && isFinite(video.duration)) rec.dur = video.duration;
+    if (rec.trimOut == null || rec.trimOut > totalFrames - 1) rec.trimOut = totalFrames - 1;
+    trimIn = clamp(rec.trimIn || 0, 0, totalFrames - 1);
+    trimOut = clamp(rec.trimOut, 0, totalFrames - 1);
+    if (trimOut <= trimIn) trimOut = totalFrames - 1;
+  } else { trimIn = 0; trimOut = totalFrames - 1; }
+  slider.min = trimIn; slider.max = trimOut;
   video.playbackRate = SPEEDS[speedIdx];
-  frameTarget = 0;
-  seekToFrame(0);
-  renderTakes(); renderAB(); updateHUD();
-  requestWakeLock();
-  startRvfc();
+  frameTarget = trimIn; seekToFrame(trimIn);                    // 停在裁切後第 0 幀
+  renderAB(); updateTrimUI(); updateHUD();
+  requestWakeLock(); startRvfc();
 });
 video.addEventListener("seeked", () => {
   if (seekTarget != null) doSeek();
@@ -700,26 +1022,21 @@ video.addEventListener("seeked", () => {
 video.addEventListener("timeupdate", () => { if (!video.paused){ loopCheck(); updateHUD(); } });
 video.addEventListener("play", () => { playing = true; setPlayUI(true); hudOverride = null; });
 video.addEventListener("pause", () => { playing = false; setPlayUI(false); frameTarget = currentFrame(); updateHUD(); });
-video.addEventListener("ended", () => {
+video.addEventListener("ended", () => {                          // 自然結尾(loopCheck 沒攔到時的後備);裁切邊界同理
   if (loopEnabled){
-    video.currentTime = (tA != null && tB != null) ? tA : 0;
+    video.currentTime = (tA != null && tB != null) ? tA : (trimIn + 0.5) / fps;
     video.play().catch(()=>{});
-  } else {
-    setPlayUI(false);
-    seekToFrame(totalFrames - 1);              // loop off:停在最後一幀
-  }
+  } else { setPlayUI(false); seekToFrame(trimOut); }
 });
 video.addEventListener("error", () => { if (video.currentSrc) showStageMsg("無法播放此格式"); });
 
 function startRvfc(){
   if (!rvfcSupported) return;
-  const my = ++rvfcId;                          // 換 take 時作廢舊迴圈,避免疊加
+  const my = ++rvfcId;                                          // 換 clip 時作廢舊迴圈
   const loop = (now, md) => {
     if (my !== rvfcId) return;
-    collectFpsSample(md);
-    loopCheck();
-    updateHUD();
-    video.requestVideoFrameCallback(loop);      // rVFC 需自我重排
+    collectFpsSample(md); loopCheck(); updateHUD();
+    video.requestVideoFrameCallback(loop);                      // rVFC 需自我重排
   };
   video.requestVideoFrameCallback(loop);
 }
@@ -728,7 +1045,7 @@ function startRvfc(){
 document.addEventListener("keydown", e => {
   if (scr !== "S3") return;
   const tag = (e.target.tagName || "").toLowerCase();
-  if (tag === "input" || tag === "textarea") return;   // 輸入焦點不攔截
+  if (tag === "input" || tag === "textarea") return;
   switch (e.key){
     case " ": e.preventDefault(); togglePlay(); break;
     case "ArrowLeft": e.preventDefault(); step(e.shiftKey ? -5 : -1); break;
@@ -744,8 +1061,7 @@ document.addEventListener("keydown", e => {
 
 /* ======================= FPS POPUP ======================= */
 function toggleFpsPop(){
-  const pop = $("fpsPop");
-  pop.classList.toggle("hidden");
+  const pop = $("fpsPop"); pop.classList.toggle("hidden");
   if (!pop.classList.contains("hidden")) renderFpsPop();
 }
 function renderFpsPop(){
@@ -754,34 +1070,41 @@ function renderFpsPop(){
     const b = document.createElement("button");
     b.className = "fps-choice" + (f === fps ? " active" : "");
     b.textContent = f;
-    b.addEventListener("click", () => { fpsManual = true; setFps(f); pop.classList.add("hidden"); });
+    b.addEventListener("click", () => {                         // 手動選 fps:最高優先,持久化
+      fpsManual = true; containerFpsResolved = true; setFps(f);
+      const rec = curClip(); if (rec){ rec.fps = f; rec.fpsManual = true; persistSoon(rec); }
+      pop.classList.add("hidden");
+    });
     pop.appendChild(b);
   });
 }
 
 /* ======================= WIRING ======================= */
-// S1
-$("btnRec1").addEventListener("click", enterCamera);
-$("btnLoad1").addEventListener("click", () => $("fileInput").click());
-// file input(不加 capture,讓 iOS 跳選單;不檢查副檔名,.mov 直接餵)
-$("fileInput").addEventListener("change", e => {
+$("btnRecEmpty").addEventListener("click", enterCamera);
+$("btnLoadEmpty").addEventListener("click", () => $("fileInput").click());
+$("btnRecPill").addEventListener("click", enterCamera);
+$("btnLoadPill").addEventListener("click", () => $("fileInput").click());
+$("fileInput").addEventListener("change", e => {                // 不加 capture、不檢查副檔名(.mov 直接餵)
   const f = e.target.files[0]; if (!f) return;
-  addTake(f, f.name.slice(0, 12));
-  loadTake(takes.length - 1);
-  e.target.value = "";                          // 允許再選同一檔
+  addClip(f, f.name.slice(0, 12));
+  e.target.value = "";
 });
 // S2
-$("btnCamClose").addEventListener("click", () => { stopRec(); stopStream(); showScreen(takes.length ? "S3" : "S1"); });
+$("btnCamClose").addEventListener("click", () => {
+  if (cdIv){ clearInterval(cdIv); cdIv = null; hideBigCount(); }
+  stopRec(); stopStream();
+  if (curId != null) showScreen("S3"); else { showScreen("S1"); renderLibrary(); }
+});
 $("btnRec").addEventListener("click", onRecPress);
 $("btnFlip").addEventListener("click", () => {
-  if (recorder && recorder.state === "recording") return;   // 換流會停軌道→錄影被迫中斷,錄影中禁切
+  if (recorder && recorder.state === "recording") return;      // 錄影中禁切鏡頭(換流會中斷錄影)
   facing = facing === "user" ? "environment" : "user"; startStream();
 });
 $("btnCountdown").addEventListener("click", () => { countdown3 = !countdown3; $("btnCountdown").classList.toggle("active", countdown3); });
 // S3 top
 $("btnFps").addEventListener("click", toggleFpsPop);
 $("btnMirror").addEventListener("click", toggleMirror);
-$("btnNew").addEventListener("click", () => showScreen("S1"));
+$("btnLibrary").addEventListener("click", backToLibrary);
 // S3 transport
 $("btnA").addEventListener("click", setA);
 $("btnB").addEventListener("click", setB);
@@ -792,10 +1115,15 @@ $("btnFwd5").addEventListener("click", () => step(5));
 $("btnPlay").addEventListener("click", togglePlay);
 // S3 secondary
 $("btnLoop").addEventListener("click", toggleLoop);
+$("btnTrim").addEventListener("click", toggleTrimBar);
 $("btnSpeed").addEventListener("click", cycleSpeed);
 $("btnCam").addEventListener("click", enterCamera);
 $("btnLoad2").addEventListener("click", () => $("fileInput").click());
-$("btnSave").addEventListener("click", saveTake);
+$("btnSave").addEventListener("click", saveClip);
+// trim bar
+$("btnTrimIn").addEventListener("click", setTrimIn);
+$("btnTrimOut").addEventListener("click", setTrimOut);
+$("btnTrimReset").addEventListener("click", resetTrim);
 // slider(拖動即 pause + seek 合流)
 slider.addEventListener("pointerdown", () => { scrubbing = true; if (!video.paused) video.pause(); });
 slider.addEventListener("input", () => seekToFrame(+slider.value));
@@ -807,11 +1135,21 @@ stage.addEventListener("pointermove", onPointerMove);
 stage.addEventListener("pointerup", onPointerUp);
 stage.addEventListener("pointercancel", onPointerUp);
 stage.addEventListener("wheel", onWheel, { passive: false });
+// 片庫刪除兩段式:點別處復原(x 自身 click 有 stopPropagation,不會誤觸)
+document.addEventListener("click", () => { if (pendingDel) clearPendingDel(); });
 
 /* ======================= INIT ======================= */
-updateFpsChip();
-setPlayUI(false);
-showScreen("S1");
+async function init(){
+  updateFpsChip(); setPlayUI(false);
+  try{ const db = await idbOpen(); db.close && db.close(); idbAvailable = true; }
+  catch(_){ idbAvailable = false; }                            // 私密瀏覽等 → 退回 session-only
+  if (idbAvailable){
+    try{ clips = await idbGetAll(); }catch(_){ clips = []; }
+    clips.sort((a, b) => (b.created || 0) - (a.created || 0));  // 固定 created 新→舊
+  }
+  setIdbWarn(); renderLibrary(); showScreen("S1");
+}
+init();
 </script>
 </body>
 </html>
