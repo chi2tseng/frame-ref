@@ -218,7 +218,7 @@ button:active:not(:disabled){transform:scale(.96);transition-duration:.12s;}  /*
 #modeDefault{justify-content:space-evenly;}
 #modeDraw{justify-content:space-evenly;}
 #modeTrim{justify-content:space-between;padding:0 16px;}
-#btnSpeed{min-width:44px;justify-content:center;}
+#btnPlayFps.active{color:var(--coral);font-family:var(--mono);font-size:14px;font-weight:500;font-variant-numeric:tabular-nums;}  /* 選了自訂值:coral + mono 數字(同 btnTrim.active）*/
 #btnTrim.active{color:var(--coral);}
 
 /* ===== FILMSTRIP (iPhone 式 trimmer;trim 模式取代 slider 那列) ===== */
@@ -252,6 +252,39 @@ button:active:not(:disabled){transform:scale(.96);transition-duration:.12s;}  /*
 #btnGhost.active{color:var(--coral);}
 .sbtn:disabled{color:var(--hair);}
 .sbtn.confirm{color:var(--coral);}
+
+/* ===== v7 停格播放彈窗(沿用 .fps-pop,改錨到模式列上方置中)===== */
+#playFpsPop{top:auto;right:auto;left:50%;bottom:calc(58px + env(safe-area-inset-bottom));transform:translateX(-50%);}
+
+/* ===== v7 side-by-side 比對(S5)+ 片庫選片模式 ===== */
+.cmp-hint{flex:0 0 auto;padding:10px 16px;font-size:14px;color:var(--slate);border-bottom:1px solid var(--hair);}
+#btnCompare.active{background:var(--coral);border-color:var(--coral);color:var(--ink);}   /* 選片模式=coral(沿用 chip.active 語彙)*/
+#btnCompare:disabled{opacity:.35;}
+.clip-card.cmp-sel{outline:3px solid var(--coral);outline-offset:-1px;}   /* 選取 ring;outline 非 shadow(守 Cohere 無陰影)*/
+.clip-badge{position:absolute;top:6px;left:6px;z-index:3;width:24px;height:24px;border-radius:50%;
+  background:var(--coral);color:var(--ink);display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;}
+.s5{display:flex;flex-direction:column;height:100vh;height:100dvh;background:var(--canvas);
+  padding-bottom:env(safe-area-inset-bottom);}
+.cmp-top{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;
+  padding:calc(10px + env(safe-area-inset-top)) 14px 10px;border-bottom:1px solid var(--hair);}
+.cmp-stage{flex:1 1 auto;min-height:0;display:flex;gap:2px;margin:12px;isolation:isolate;}   /* 兩支都直式→row 左右並排;否則 col 上下堆疊 */
+.cmp-stage.col{flex-direction:column;}
+.cmp-stage.row{flex-direction:row;}
+.cmp-pane{position:relative;flex:1 1 0;min-width:0;min-height:0;background:var(--primary);
+  border-radius:22px;overflow:hidden;isolation:isolate;}   /* 沿用 22px 圓角深色媒體卡 + isolation */
+.cmp-pane video{width:100%;height:100%;object-fit:contain;background:var(--primary);display:block;}
+.cmp-fnum{position:absolute;right:8px;bottom:8px;z-index:2;background:rgba(0,0,0,.42);border-radius:8px;
+  padding:3px 7px;font-family:var(--mono);font-size:13px;font-weight:500;line-height:1.1;color:#fff;
+  font-variant-numeric:tabular-nums;pointer-events:none;}
+.cmp-nudge{position:absolute;left:8px;bottom:8px;z-index:2;display:flex;align-items:center;gap:2px;}
+.cmp-nudge button{position:relative;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.4);
+  color:#fff;display:flex;align-items:center;justify-content:center;}   /* 36px 視覺 */
+.cmp-nudge button::before{content:"";position:absolute;inset:-4px;}   /* 透明外擴熱區 44×44 */
+.cmp-nudge .material-symbols-outlined{font-size:20px;color:#fff;}
+.cmp-off{min-width:22px;text-align:center;font-family:var(--mono);font-size:12px;color:#fff;font-variant-numeric:tabular-nums;}
+.cmp-scrub{flex:0 0 auto;padding:2px 16px 0;}
+.cmp-sub{flex:0 0 auto;display:flex;align-items:center;justify-content:center;height:52px;margin:4px 0 2px;}
 
 /* ===== v5 全機型適配(320px 起跳,直向為主、橫向可用;一律 CSS,無 JS 量測)===== */
 /* 窄機 ≤359(iPhone SE/mini 320~359):控制列不換行不重疊、可見鈕 ≥40px */
@@ -298,9 +331,11 @@ button:active:not(:disabled){transform:scale(.96);transition-duration:.12s;}  /*
         <div class="lib-actions">
           <button id="btnRecPill" class="pill-btn"><span class="material-symbols-outlined">videocam</span><span data-i18n="record">Record</span></button>
           <button id="btnLoadPill" class="pill-btn"><span class="material-symbols-outlined">upload</span><span data-i18n="import">Import</span></button>
+          <button id="btnCompare" class="pill-btn" data-i18n-title="compare" title="Compare"><span class="material-symbols-outlined">splitscreen</span></button>
           <button id="btnLang" class="trim-reset" data-i18n="langToggle">中</button>
         </div>
       </div>
+      <div id="cmpHint" class="cmp-hint hidden" data-i18n="cmpPick">Pick two clips</div>
       <div id="idbWarn" class="idb-warn hidden"><span class="material-symbols-outlined">warning</span><span id="idbWarnText"></span></div>
       <div id="libGrid" class="lib-grid"></div>
     </div>
@@ -341,6 +376,7 @@ button:active:not(:disabled){transform:scale(.96);transition-duration:.12s;}  /*
       </div>
     </div>
     <div id="fpsPop" class="fps-pop hidden"></div>
+    <div id="playFpsPop" class="fps-pop hidden"></div>
 
     <div id="stage" class="stage">
       <div id="mirrorWrap" class="mirror-wrap">
@@ -389,7 +425,7 @@ button:active:not(:disabled){transform:scale(.96);transition-duration:.12s;}  /*
     <div class="mode-deck">
       <div id="modeDefault" class="mode-layer active">
         <button id="btnLoop" class="sbtn"><span class="material-symbols-outlined">repeat</span></button>
-        <button id="btnSpeed" class="chip">1×</button>
+        <button id="btnPlayFps" class="sbtn"><span class="material-symbols-outlined">slow_motion_video</span></button>
         <button id="btnTrim" class="sbtn"><span class="material-symbols-outlined">content_cut</span></button>
         <button id="btnDraw" class="sbtn"><span class="material-symbols-outlined">stylus_note</span></button>
       </div>
@@ -406,6 +442,48 @@ button:active:not(:disabled){transform:scale(.96);transition-duration:.12s;}  /*
         <button id="btnTrimReset" class="trim-reset" data-i18n="reset">Reset</button>
         <button id="btnTrimDone" class="trim-done" data-i18n="done">Done</button>
       </div>
+    </div>
+  </div>
+
+  <!-- S5 比對(side-by-side;獨立輕量同步,不共用 S3 引擎) -->
+  <div id="screenS5" class="screen s5 hidden">
+    <div class="cmp-top">
+      <button id="btnCmpBack" class="sbtn"><span class="material-symbols-outlined">arrow_back</span></button>
+    </div>
+    <div id="cmpStage" class="cmp-stage col">
+      <div class="cmp-pane">
+        <video id="cmpV0" playsinline webkit-playsinline preload="auto" muted></video>
+        <div id="cmpF0" class="cmp-fnum">#0000</div>
+        <div class="cmp-nudge">
+          <button id="cmpL0"><span class="material-symbols-outlined">chevron_left</span></button>
+          <span id="cmpO0" class="cmp-off"></span>
+          <button id="cmpR0"><span class="material-symbols-outlined">chevron_right</span></button>
+        </div>
+      </div>
+      <div class="cmp-pane">
+        <video id="cmpV1" playsinline webkit-playsinline preload="auto" muted></video>
+        <div id="cmpF1" class="cmp-fnum">#0000</div>
+        <div class="cmp-nudge">
+          <button id="cmpL1"><span class="material-symbols-outlined">chevron_left</span></button>
+          <span id="cmpO1" class="cmp-off"></span>
+          <button id="cmpR1"><span class="material-symbols-outlined">chevron_right</span></button>
+        </div>
+      </div>
+    </div>
+    <div class="cmp-scrub">
+      <input id="cmpSlider" class="slider" type="range" min="0" max="1" step="0.001" value="0">
+    </div>
+    <div class="transport">
+      <span class="t-gap"></span>
+      <button id="cmpBack5" class="tbtn"><span class="material-symbols-outlined">keyboard_double_arrow_left</span></button>
+      <button id="cmpBack1" class="tbtn"><span class="material-symbols-outlined">chevron_left</span></button>
+      <button id="cmpPlay" class="tbtn play"><span class="material-symbols-outlined">play_arrow</span></button>
+      <button id="cmpFwd1" class="tbtn"><span class="material-symbols-outlined">chevron_right</span></button>
+      <button id="cmpFwd5" class="tbtn"><span class="material-symbols-outlined">keyboard_double_arrow_right</span></button>
+      <span class="t-gap"></span>
+    </div>
+    <div class="cmp-sub">
+      <button id="btnCmpLoop" class="sbtn"><span class="material-symbols-outlined">repeat</span></button>
     </div>
   </div>
 
@@ -435,6 +513,7 @@ const STR = {
     camErrRecordUnsupported: "Recording not supported: ",
     playerErrFormat: "Unable to play this format",
     clipName: "Clip", langToggle: "中",
+    compare: "Compare", cmpPick: "Pick two clips", playFpsFull: "Full",
     rampHint: "First ~{n} frames are sparse (camera warm-up) — trim to skip",
   },
   zh: {
@@ -451,6 +530,7 @@ const STR = {
     camErrRecordUnsupported: "錄影不支援:",
     playerErrFormat: "無法播放此格式",
     clipName: "Take", langToggle: "EN",
+    compare: "比對", cmpPick: "選兩支影片", playFpsFull: "全速",
     rampHint: "開頭 ~{n} 幀是相機暖機稀疏幀 — 可用裁切跳過",
   },
 };
@@ -497,9 +577,14 @@ let lastRenderKey = null;                  // v5 renderNotes 髒檢查:frame:str
 let drawing = false, curStroke = null, curPressures = null, noteDelTimer = null;
 let priming = false, lastSliderWrite = 0, unmuteTimer = null;   // priming=開片靜音預熱(UI 凍結);unmuteTimer=起播 300ms 後開聲
 
-// speed
-const SPEEDS = [1, 0.5, 0.25], SPEED_LABELS = ["1×", "½×", "¼×"];
-let speedIdx = 0;
+// v7 停格播放(animator on-2s/on-4s 預覽):playFps=0=Full(正常播放);>0 且 <fps → startStepped(video 保持 paused,setInterval 逐格 seek)
+let playFps = 0, stepTimer = null, stepPos = 0;
+// v7 side-by-side 比對(S5;獨立輕量同步,不共用 S3 seek 合流引擎;恆實時全速)
+let cmpSelMode = false, cmpSel = [];                            // 片庫選片模式 + 已選 id(選取序)
+let cmpActive = false, cmpPanes = [], cmpCt = 0, cmpT = 1 / 30; // 全域時間軸(秒)
+let cmpPlaying = false, cmpLoopEnabled = false;
+let cmpScrubbing = false, cmpRaf = null, cmpUnmuteTimer = null;
+let cmpAnchorNow = 0, cmpAnchorCt = 0;                          // 主 pane 凍結時的牆鐘後備錨點
 
 // 片庫(IDB 紀錄,newest-first;開啟時才給 .url)
 let clips = [], curId = null;
@@ -688,8 +773,10 @@ function showScreen(s){
   if (scr === "S2" && s !== "S2"){                              // v5 省電:離開相機確保停流 + 釋放預覽(srcObject=null)
     stopStream(); const cv = $("camVideo"); if (cv) cv.srcObject = null;
   }
+  if (scr === "S3" && s !== "S3") stopStepped();                // v7:離開播放器停掉停格 timer
+  if (scr === "S5" && s !== "S5") cmpTeardown();                // v7:離開比對 pause + 清 source + revoke ×2
   scr = s;
-  const map = { S1: "screenS1", S2: "screenS2", S3: "screenS3" };
+  const map = { S1: "screenS1", S2: "screenS2", S3: "screenS3", S5: "screenS5" };
   for (const k in map){
     const el = $(map[k]), on = k === s;
     el.classList.toggle("hidden", !on);
@@ -708,7 +795,7 @@ function renderLibrary(){
   $("libFull").classList.toggle("hidden", !has);
   if (!has) return;
   clips.forEach(rec => {
-    const card = document.createElement("div"); card.className = "clip-card";
+    const card = document.createElement("div"); card.className = "clip-card"; card.dataset.id = rec.id;
     const th = document.createElement("div"); th.className = "clip-thumb";
     if (rec.thumb){ const u = URL.createObjectURL(rec.thumb); thumbUrls.push(u);
       const img = document.createElement("img"); img.src = u; img.alt = ""; th.appendChild(img); }
@@ -717,12 +804,14 @@ function renderLibrary(){
     meta.textContent = fmtDur(rec.dur) + " · " + rec.fps + " fps";
     const x = document.createElement("button"); x.className = "clip-x";
     x.innerHTML = '<span class="material-symbols-outlined">close</span>';
-    th.addEventListener("click", () => openClip(rec.id));
-    nm.addEventListener("click", e => { e.stopPropagation(); startRename(rec, nm); });
-    x.addEventListener("click", e => { e.stopPropagation(); confirmDelete(rec, x); });
+    th.addEventListener("click", () => { if (cmpSelMode) toggleCmpSelect(rec.id); else openClip(rec.id); });   // v7:選片模式 tap = 選取
+    nm.addEventListener("click", e => { e.stopPropagation(); if (cmpSelMode) return; startRename(rec, nm); });
+    x.addEventListener("click", e => { e.stopPropagation(); if (cmpSelMode) return; confirmDelete(rec, x); });
     card.appendChild(th); card.appendChild(nm); card.appendChild(meta); card.appendChild(x);
     grid.appendChild(card);
   });
+  const bc = $("btnCompare"); if (bc) bc.disabled = clips.length < 2;   // v7:<2 支不能比對
+  if (cmpSelMode) cmpRefreshSelVisuals();
 }
 function startRename(rec, nmEl){
   const inp = document.createElement("input"); inp.className = "clip-name-input"; inp.value = rec.name;
@@ -799,6 +888,7 @@ function openClip(id){
   curId = id;
   rec.url = URL.createObjectURL(rec.blob);
   resetZoom();
+  playFps = 0; stopStepped(); updatePlayFpsBtn();               // v7:換 clip 重置停格播放(session 內不跨片記憶)
   fps = rec.fps || 30; fpsManual = !!rec.fpsManual;
   trimIn = rec.trimIn || 0; trimOut = rec.trimOut != null ? rec.trimOut : 0;
   containerFpsResolved = false;
@@ -1384,14 +1474,17 @@ function diagRender(){
 }
 
 function togglePlay(){
+  if (stepTimer != null){ stopStepped(); setPlayUI(false); return; }   // v7:停格播放中按 = 暫停(video 本就 paused)
   if (priming){                                                  // 預熱中按播放=直接轉正:取消凍結、續播(300ms 後開聲)
     priming = false; playing = true; setPlayUI(true); hudOverride = null;
     clearTimeout(unmuteTimer);
+    if (shouldStep()){ playing = false; startStepped(); return; }   // v7:預熱中選了停格 → 轉停格(startStepped 會 pause + setPlayUI)
     unmuteTimer = setTimeout(() => { if (!video.paused) video.muted = false; }, 300);
     return;
   }
   if (!video.paused){ video.pause(); return; }
   if (currentFrame() >= trimOut) seekToFrame(trimIn);            // 播完再按播放 = 從頭重播
+  if (shouldStep()){ startStepped(); return; }                   // v7:停格播放路徑(以下正常播放路徑一字不動)
   if (video.readyState >= 3){ startPlayback(); return; }
   // 先載好再播:資料未就緒就等 canplaythrough(上限 1.2s 保底),不硬起播去掉幀
   setPlayUI(true);
@@ -1410,11 +1503,53 @@ function loopCheck(){                                            // 裁切邊界
   }
 }
 function toggleLoop(){ loopEnabled = !loopEnabled; $("btnLoop").classList.toggle("active", loopEnabled); }
-function cycleSpeed(){
-  speedIdx = (speedIdx + 1) % SPEEDS.length;
-  video.playbackRate = SPEEDS[speedIdx];
-  $("btnSpeed").textContent = SPEED_LABELS[speedIdx];
+/* ===== v7 停格播放(animator on-2s/on-4s 預覽;走既有 seek 合流引擎,勿另造)===== */
+const PLAY_FPS_CHOICES = [0, 12, 8, 6, 4, 3, 2, 1];            // 0 = Full(全速正常播放)
+function shouldStep(){ return playFps > 0 && playFps < fps; }  // 自訂 fps 低於片格率才停格;≥fps 或 0 走正常路徑
+function updatePlayFpsBtn(){
+  const b = $("btnPlayFps"); if (!b) return;
+  if (playFps > 0){ b.classList.add("active"); b.textContent = playFps; }          // active = coral + mono 數字(CSS)
+  else { b.classList.remove("active"); b.innerHTML = '<span class="material-symbols-outlined">slow_motion_video</span>'; }
 }
+function togglePlayFpsPop(){
+  $("fpsPop").classList.add("hidden");                          // 與頂欄 fps 彈窗互斥
+  const pop = $("playFpsPop"); pop.classList.toggle("hidden");
+  if (!pop.classList.contains("hidden")) renderPlayFpsPop();
+}
+function renderPlayFpsPop(){
+  const pop = $("playFpsPop"); pop.innerHTML = "";
+  PLAY_FPS_CHOICES.forEach(f => {
+    const b = document.createElement("button");
+    b.className = "fps-choice" + (f === playFps ? " active" : "");
+    b.textContent = f === 0 ? t("playFpsFull") : f;
+    b.addEventListener("click", () => { setPlayFps(f); pop.classList.add("hidden"); });
+    pop.appendChild(b);
+  });
+}
+function setPlayFps(f){
+  const wasStepping = stepTimer != null, wasPlaying = wasStepping || !video.paused;
+  playFps = f; updatePlayFpsBtn();
+  if (!wasPlaying) return;                                      // 沒在播:只記值,下次播放才生效
+  stopStepped();                                               // 在播中改值 → 依新模式無縫接續
+  if (shouldStep()) startStepped();
+  else if (video.paused) startPlayback();                       // 由停格轉正常:起播(正常路徑不動)
+}
+function startStepped(){                                        // video 保持 paused,setInterval 逐格 seek(每 tick 前進 fps/playFps 幀)
+  stopStepped();
+  if (!video.paused) video.pause();
+  setPlayUI(true);
+  stepPos = clamp(seeking ? frameTarget : currentFrame(), trimIn, trimOut);
+  const inc = fps / playFps;                                    // 24fps 選 4 → 每 tick +6 幀(實時節奏不變)
+  stepTimer = setInterval(() => {
+    stepPos += inc; let target = Math.round(stepPos);
+    if (target > trimOut){
+      if (loopEnabled){ stepPos = trimIn; target = trimIn; }    // loop:回 trimIn 繼續
+      else { stopStepped(); setPlayUI(false); seekToFrame(trimOut); return; }   // 否則停在 trimOut
+    }
+    seekToFrame(target);                                        // 走既有 seek 合流引擎
+  }, 1000 / playFps);
+}
+function stopStepped(){ if (stepTimer != null){ clearInterval(stepTimer); stepTimer = null; } }
 function toggleMirror(){ mirror = !mirror; applyTransform(); $("btnMirror").classList.toggle("active", mirror); }
 
 /* ======================= TRANSFORM (zoom/pan/mirror) ======================= */
@@ -1694,7 +1829,6 @@ video.addEventListener("loadedmetadata", () => {
     if (trimOut <= trimIn) trimOut = totalFrames - 1;
   } else { trimIn = 0; trimOut = totalFrames - 1; }
   slider.min = trimIn; slider.max = trimOut;
-  video.playbackRate = SPEEDS[speedIdx];
   frameTarget = trimIn; seekToFrame(trimIn);                    // 停在裁切後第 0 幀
   primeDecoder();                                               // iOS 首播掉幀:開片先靜音短播預熱解碼管線
   layoutNoteCanvas(); syncTrimUI(); updateNoteMarks(); updateHUD();
@@ -1786,6 +1920,204 @@ function renderFpsPop(){
   });
 }
 
+/* ======================= v7 COMPARE (S5;獨立輕量同步,不共用 S3 seek 合流引擎;恆實時全速) ======================= */
+/* 片庫選片模式 */
+function toggleCompareMode(){
+  if (!cmpSelMode && clips.length < 2) return;
+  if (cmpSelMode){ cmpExitSelect(); return; }
+  cmpSelMode = true; cmpSel = [];
+  $("btnCompare").classList.add("active");
+  $("cmpHint").classList.remove("hidden");
+  cmpRefreshSelVisuals();
+}
+function cmpExitSelect(){
+  cmpSelMode = false; cmpSel = [];
+  const b = $("btnCompare"); if (b) b.classList.remove("active");
+  const h = $("cmpHint"); if (h) h.classList.add("hidden");
+  cmpRefreshSelVisuals();
+}
+function toggleCmpSelect(id){
+  const i = cmpSel.findIndex(s => String(s) === String(id));
+  if (i >= 0) cmpSel.splice(i, 1);
+  else { if (cmpSel.length >= 2) return; cmpSel.push(id); }     // 已滿 2 支忽略
+  cmpRefreshSelVisuals();
+  if (cmpSel.length === 2) cmpEnter(cmpSel.slice());            // 選滿 2 支 → 自動進比對
+}
+function cmpRefreshSelVisuals(){                                // ring + 序號章(coral);不重建縮圖(免 revoke/reload flicker)
+  document.querySelectorAll("#libGrid .clip-card").forEach(card => {
+    const idx = cmpSel.findIndex(s => String(s) === card.dataset.id);
+    card.classList.toggle("cmp-sel", idx >= 0);
+    let badge = card.querySelector(".clip-badge");
+    if (idx >= 0){
+      if (!badge){ badge = document.createElement("div"); badge.className = "clip-badge"; card.appendChild(badge); }
+      badge.textContent = String(idx + 1);
+    } else if (badge) badge.remove();
+  });
+}
+
+/* S5 進出 + 資源生命週期 */
+function setPaneSrc(v, url, type){                              // setVideoSrc 的獨立版(<source> 子元素;不碰主播放器 video)
+  v.removeAttribute("src");
+  [...v.querySelectorAll("source")].forEach(s => s.remove());
+  if (url){ const s = document.createElement("source"); s.src = url; if (type) s.type = type; v.appendChild(s); }
+  v.load();
+}
+function cmpEnter(ids){
+  cmpExitSelect();
+  if (cmpPanes.length) cmpTeardown();                          // 保險:殘留先清
+  const recs = ids.map(id => clips.find(c => String(c.id) === String(id))).filter(Boolean).slice(0, 2);
+  if (recs.length < 2) return;
+  cmpPanes = recs.map((rec, i) => {
+    const fps0 = rec.fps || 30, tin = rec.trimIn || 0;
+    let tout = rec.trimOut; if (tout == null) tout = Math.max(0, Math.floor((rec.dur || 0) * fps0) - 1);
+    return { rec, fps: fps0, trimIn: tin, trimOut: tout, start: tin / fps0,
+             len: Math.max(1 / fps0, (tout - tin + 1) / fps0), off: 0, dur: rec.dur || 0,
+             url: URL.createObjectURL(rec.blob), v: $("cmpV" + i), fnEl: $("cmpF" + i), offEl: $("cmpO" + i) };
+  });
+  cmpActive = true; cmpCt = 0; cmpPlaying = false; cmpLoopEnabled = false;
+  $("btnCmpLoop").classList.remove("active"); cmpSetPlayUI(false);
+  cmpLayout(); cmpComputeT(); showScreen("S5");
+  cmpPanes.forEach(p => {
+    p.v.playbackRate = 1; p.v.muted = true;                    // 比對恆實時全速;pane2 恆靜音;主 pane 於播放時才開聲
+    p.v.onloadedmetadata = () => {                             // 進畫面:各自 seek 到起點、暫停
+      if ((!p.dur || !isFinite(p.dur)) && isFinite(p.v.duration)) p.dur = p.v.duration;
+      cmpLayout(); cmpComputeT();
+      if (p.v.duration && isFinite(p.v.duration)){ try{ p.v.currentTime = cmpSeekTarget(p); }catch(_){} }
+      cmpUpdateHUD();
+    };
+    setPaneSrc(p.v, p.url, p.rec.blob && p.rec.blob.type);      // 進 S5 才建 objectURL + <source> 掛載
+  });
+}
+function cmpTeardown(){
+  cmpPause();
+  clearTimeout(cmpUnmuteTimer);
+  cmpPanes.forEach(p => {
+    if (p.v){ p.v.onloadedmetadata = null; try{ setPaneSrc(p.v, null); }catch(_){} }   // 先斷媒體管線
+    if (p.url){ URL.revokeObjectURL(p.url); p.url = null; }                             // 再 revoke ×2
+  });
+  cmpPanes = []; cmpActive = false; cmpCt = 0; cmpPlaying = false;
+}
+function cmpLayout(){                                           // 兩支都直式(vw<vh)→ row 並排;否則 col 堆疊
+  const portrait = p => { const w = (p.rec.vw || p.v.videoWidth || 0), h = (p.rec.vh || p.v.videoHeight || 0); return w > 0 && h > w; };
+  const both = cmpPanes.length === 2 && cmpPanes.every(portrait);
+  const st = $("cmpStage"); if (!st) return;
+  st.classList.toggle("row", both); st.classList.toggle("col", !both);
+}
+function cmpComputeT(){                                         // T = 兩支「裁切後長度 + 偏移」的最大值
+  let T = 1 / 30;
+  cmpPanes.forEach(p => { T = Math.max(T, p.len - p.off); });
+  cmpT = T;
+  const sl = $("cmpSlider"); if (sl){ sl.min = 0; sl.max = cmpT; sl.step = 0.001; }
+  if (cmpCt > cmpT) cmpCt = cmpT;
+  if (sl && !cmpScrubbing) sl.value = cmpCt;
+}
+
+/* 同步核心(時間制,兩支 fps 可不同) */
+function cmpSeekTarget(p){                                      // 影片時間 = trimIn/fps + clamp(ct+off,0,len);末端凍在最後一幀
+  const rel = clamp(cmpCt + p.off, 0, p.len);
+  const dur = (p.v && p.v.duration && isFinite(p.v.duration)) ? p.v.duration : (p.dur || (p.start + rel + 1));
+  const maxT = (p.trimOut + 0.5) / p.fps;                       // 最後一幀中點,不越界到下一幀
+  return clamp(p.start + rel, 0, Math.min(maxT, dur - 0.001));
+}
+function cmpSeekAll(){                                          // 暫停/步進/拖曳:兩 pane 換算時間 seek
+  cmpPanes.forEach(p => {
+    if (!p.v || !p.v.duration || !isFinite(p.v.duration)) return;
+    const ta = cmpSeekTarget(p);
+    if (Math.abs(p.v.currentTime - ta) > 0.001) p.v.currentTime = ta;
+  });
+  cmpUpdateHUD();
+}
+function cmpUpdateHUD(){
+  cmpPanes.forEach(p => {
+    const rel = clamp(cmpCt + p.off, 0, p.len);
+    const fr = clamp(Math.round(rel * p.fps), 0, p.trimOut - p.trimIn);            // 該 pane 自己的 fps 基準、相對 trimIn
+    const fn = "#" + String(fr).padStart(4, "0");
+    if (p.fnEl && p.fnEl.textContent !== fn) p.fnEl.textContent = fn;
+    const offFr = Math.round(p.off * p.fps);
+    const os = offFr === 0 ? "" : (offFr > 0 ? "+" + offFr : String(offFr));       // 0 時不顯示數字
+    if (p.offEl && p.offEl.textContent !== os) p.offEl.textContent = os;
+  });
+  const sl = $("cmpSlider");
+  if (sl && !cmpScrubbing){ const v = String(cmpCt); if (sl.value !== v) sl.value = cmpCt; }
+}
+function cmpStep(n){                                            // 步進單位 = 主 pane(index 0)fps
+  cmpPause();
+  const main = cmpPanes[0]; if (!main) return;
+  cmpCt = clamp(cmpCt + n / main.fps, 0, cmpT);
+  cmpSeekAll();
+}
+function cmpNudge(i, d){                                        // 對齊偏移:該 pane 相對另一支 ±1 幀(以該 pane fps)
+  const p = cmpPanes[i]; if (!p) return;
+  p.off += d / p.fps;
+  cmpComputeT();
+  if (!cmpPlaying) cmpSeekAll(); else cmpUpdateHUD();
+}
+function cmpToggleLoop(){ cmpLoopEnabled = !cmpLoopEnabled; $("btnCmpLoop").classList.toggle("active", cmpLoopEnabled); }
+function cmpSetPlayUI(on){ const el = $("cmpPlay"); if (el) el.querySelector(".material-symbols-outlined").textContent = on ? "pause" : "play_arrow"; }
+
+/* 播放(兩支同時 play;主 pane 靜音起播 300ms 開聲,pane2 恆靜音;rAF 主時鐘 + 漂移校正) */
+function cmpTogglePlay(){
+  if (cmpPlaying){ cmpPause(); return; }
+  if (cmpCt >= cmpT - 1e-4) cmpCt = 0;                          // 播完再按 = 從頭
+  cmpStartPlay();
+}
+function cmpStartPlay(){
+  if (cmpPanes.length < 2) return;
+  cmpPlaying = true; cmpSetPlayUI(true);
+  cmpAnchorNow = performance.now(); cmpAnchorCt = cmpCt;
+  cmpPanes.forEach(p => {
+    const raw = cmpCt + p.off, playable = raw >= -1e-6 && raw < p.len - 1e-4;
+    p.v.playbackRate = 1; p.v.muted = true;                    // 主 pane 先靜音(下方 300ms 後開聲);pane2 恆靜音
+    if (playable && p.v.duration && isFinite(p.v.duration)) p.v.play().catch(()=>{});
+  });
+  clearTimeout(cmpUnmuteTimer);
+  cmpUnmuteTimer = setTimeout(() => { const m = cmpPanes[0]; if (cmpPlaying && m && !m.v.paused) m.v.muted = false; }, 300);
+  if (cmpRaf) cancelAnimationFrame(cmpRaf);
+  cmpRaf = requestAnimationFrame(cmpTick);
+}
+function cmpPause(){
+  cmpPlaying = false; cmpSetPlayUI(false);
+  clearTimeout(cmpUnmuteTimer);
+  cmpPanes.forEach(p => { if (p.v){ if (!p.v.paused) p.v.pause(); p.v.muted = true; } });   // pane2 恆靜音;主 pane 暫停也歸位
+  if (cmpRaf){ cancelAnimationFrame(cmpRaf); cmpRaf = null; }
+}
+function cmpTick(){
+  if (!cmpPlaying || cmpPanes.length < 2){ cmpRaf = null; return; }
+  const now = performance.now(), main = cmpPanes[0];
+  const mready = main.v.duration && isFinite(main.v.duration), mraw = cmpCt + main.off;
+  const mainDrives = mready && !main.v.paused && mraw > 1e-4 && mraw < main.len - 1e-4;
+  if (mainDrives){                                             // 主 pane 自走當主時鐘
+    cmpCt = clamp((main.v.currentTime - main.start) - main.off, 0, cmpT);
+    cmpAnchorNow = now; cmpAnchorCt = cmpCt;
+  } else {                                                     // 主 pane 凍結(短片先播完等長片)→ 牆鐘後備續走(速率 1)
+    cmpCt = clamp(cmpAnchorCt + (now - cmpAnchorNow) / 1000, 0, cmpT);
+  }
+  cmpPanes.forEach((p, i) => {
+    if (!p.v.duration || !isFinite(p.v.duration)) return;
+    const raw = cmpCt + p.off, target = cmpSeekTarget(p);
+    const atEnd = raw >= p.len - 1e-4, holdStart = raw < -1e-6;
+    if (!atEnd && !holdStart){
+      if (p.v.paused){ p.v.playbackRate = 1; if (i > 0) p.v.muted = true; p.v.play().catch(()=>{}); }
+      const thr = i === 0 ? 0.08 : 0.05;                       // 漂移 >0.05(pane2)直接 set currentTime 校正
+      if (Math.abs(p.v.currentTime - target) > thr) p.v.currentTime = target;
+    } else {                                                   // 凍在最後/最初一幀(不黑屏、不隱藏)
+      if (!p.v.paused) p.v.pause();
+      if (Math.abs(p.v.currentTime - target) > 0.02) p.v.currentTime = target;
+    }
+  });
+  cmpUpdateHUD();
+  if (cmpCt >= cmpT - 1e-4){
+    if (cmpLoopEnabled){                                       // 到 T 兩支一起回頭(靜音重啟)
+      cmpCt = 0; cmpAnchorNow = performance.now(); cmpAnchorCt = 0;
+      cmpPanes.forEach(p => { try{ p.v.currentTime = cmpSeekTarget(p); }catch(_){} p.v.muted = true;
+        const raw = cmpCt + p.off; if (raw >= -1e-6 && raw < p.len - 1e-4 && p.v.duration) p.v.play().catch(()=>{}); });
+      clearTimeout(cmpUnmuteTimer);
+      cmpUnmuteTimer = setTimeout(() => { const m = cmpPanes[0]; if (cmpPlaying && m && !m.v.paused) m.v.muted = false; }, 300);
+    } else { cmpCt = cmpT; cmpPause(); cmpSeekAll(); return; }  // 停:凍結在末端
+  }
+  cmpRaf = requestAnimationFrame(cmpTick);
+}
+
 /* ======================= WIRING ======================= */
 $("btnRecEmpty").addEventListener("click", enterCamera);
 $("btnLoadEmpty").addEventListener("click", () => $("fileInput").click());
@@ -1837,7 +2169,7 @@ $("btnLoop").addEventListener("click", toggleLoop);
 $("btnTrim").addEventListener("click", toggleTrim);
 $("btnDraw").addEventListener("click", toggleDraw);
 $("btnDrawDone").addEventListener("click", toggleDraw);          // 畫筆層蓋住 btnDraw,層內必須有退出口
-$("btnSpeed").addEventListener("click", cycleSpeed);
+$("btnPlayFps").addEventListener("click", togglePlayFpsPop);
 $("btnSave").addEventListener("click", saveClip);
 // trim 完成/重置 + filmstrip 拖曳(把手 in/out + 條身 scrub)
 $("btnTrimReset").addEventListener("click", resetTrim);
@@ -1873,12 +2205,26 @@ stage.addEventListener("wheel", onWheel, { passive: false });
 window.addEventListener("resize", () => { layoutNoteCanvas(); if (trimMode) updateFilmstrip(); });
 // 片庫刪除兩段式:點別處復原(x 自身 click 有 stopPropagation,不會誤觸)
 document.addEventListener("click", () => { if (pendingDel) clearPendingDel(); });
+// v7 compare:片庫選片入口 + S5 控制(back/play/step/nudge/loop/slider;無 speed chip)
+$("btnCompare").addEventListener("click", toggleCompareMode);
+$("btnCmpBack").addEventListener("click", () => { showScreen("S1"); renderLibrary(); });   // 退出即清理(showScreen→cmpTeardown)
+$("cmpPlay").addEventListener("click", cmpTogglePlay);
+$("cmpBack5").addEventListener("click", () => cmpStep(-5));
+$("cmpBack1").addEventListener("click", () => cmpStep(-1));
+$("cmpFwd1").addEventListener("click", () => cmpStep(1));
+$("cmpFwd5").addEventListener("click", () => cmpStep(5));
+$("btnCmpLoop").addEventListener("click", cmpToggleLoop);
+[["cmpL0",0,-1],["cmpR0",0,1],["cmpL1",1,-1],["cmpR1",1,1]].forEach(a => $(a[0]).addEventListener("click", () => cmpNudge(a[1], a[2])));
+$("cmpSlider").addEventListener("pointerdown", () => { cmpScrubbing = true; cmpPause(); });
+$("cmpSlider").addEventListener("input", () => { cmpCt = clamp(+$("cmpSlider").value, 0, cmpT); cmpSeekAll(); });
+$("cmpSlider").addEventListener("pointerup", () => { cmpScrubbing = false; });
+$("cmpSlider").addEventListener("change", () => { cmpScrubbing = false; });
 
 /* ======================= INIT ======================= */
 async function init(){
   applyLang();
   initNoteCanvas();
-  updateFpsChip(); setPlayUI(false);
+  updateFpsChip(); updatePlayFpsBtn(); setPlayUI(false);
   try{ const db = await idbOpen(); db.close && db.close(); idbAvailable = true; }
   catch(_){ idbAvailable = false; }                            // 私密瀏覽等 → 退回 session-only
   if (idbAvailable){
