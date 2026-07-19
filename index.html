@@ -93,7 +93,8 @@ button:active:not(:disabled){transform:scale(.96);transition-duration:.12s;}  /*
 .s2{display:flex;flex-direction:column;background:var(--canvas);
   padding:env(safe-area-inset-top) 12px calc(12px + env(safe-area-inset-bottom));}
 .cam-stage{flex:1 1 auto;position:relative;margin-top:12px;border-radius:22px;overflow:hidden;
-  background:var(--primary);min-height:0;}
+  background:var(--primary);min-height:0;
+  touch-action:none;}  /* iOS Safari 無視 user-scalable=no,捏合會變網頁縮放;這裡必須自己攔 */
 .cam-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:var(--primary);}
 .cam-top{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;
   padding:12px 14px;z-index:2;}
@@ -948,28 +949,28 @@ function camPinchMove(e){
   }
 }
 function camPinchUp(e){ camPointers.delete(e.pointerId); }
-function lensShortLabel(label, idx){                            // 泡泡標:仿 iPhone .5/1/2/A
-  const l = (label || "").toLowerCase();
-  if (/ultra|超廣/.test(l)) return ".5";
-  if (/tele|望遠|長焦/.test(l)) return "2";
-  if (/dual|triple|雙鏡|三鏡/.test(l)) return "A";
-  if (/wide|廣角/.test(l)) return "1";
-  return label ? "1" : String(idx + 1);
-}
 async function updateLensRow(){
   const row = $("lensRow");
   try{
     if (facing === "user" || !navigator.mediaDevices.enumerateDevices){ row.classList.add("hidden"); return; }
-    const devs = (await navigator.mediaDevices.enumerateDevices())
+    // 仿 iPhone:只列「實體」後鏡頭,每個焦段一顆(.5/1/2)。iPhone 另會回報 Dual/Triple/TrueDepth
+    // 等虛擬合成裝置,全列出來泡泡會爆量 → 一律過濾。label 需權限後才有(startStream 之後呼叫)。
+    const phys = (await navigator.mediaDevices.enumerateDevices())
       .filter(d => d.kind === "videoinput")
-      .filter(d => !/front|user|facetime|前置/i.test(d.label));       // 只列後鏡頭;label 需權限後才有(startStream 之後呼叫)
-    if (devs.length < 2){ row.classList.add("hidden"); return; }
+      .filter(d => !/front|user|facetime|truedepth|前置/i.test(d.label))
+      .filter(d => !/dual|triple|雙鏡|三鏡/i.test(d.label));
+    const rank = l => /ultra|超廣/i.test(l) ? 0 : /tele|望遠|長焦/i.test(l) ? 2 : 1;
+    const seen = new Set();
+    const lenses = phys.map(d => ({ d, r: rank(d.label) }))
+      .sort((a, b) => a.r - b.r)
+      .filter(x => !seen.has(x.r) && seen.add(x.r));               // 同焦段多裝置取第一
+    if (lenses.length < 2){ row.classList.add("hidden"); return; }
     const curId = stream && stream.getVideoTracks()[0] && stream.getVideoTracks()[0].getSettings().deviceId;
     row.innerHTML = "";
-    devs.forEach((d, i) => {
+    lenses.forEach(({ d, r }) => {
       const b = document.createElement("button");
       b.className = "lens-chip" + (d.deviceId === curId ? " active" : "");
-      b.textContent = lensShortLabel(d.label, i);
+      b.textContent = [".5", "1", "2"][r];
       b.addEventListener("click", () => switchLens(d.deviceId));
       row.appendChild(b);
     });
@@ -1666,6 +1667,8 @@ $("btnFlip").addEventListener("click", () => {
 $("btnCountdown").addEventListener("click", () => { countdown3 = !countdown3; $("btnCountdown").classList.toggle("active", countdown3); });
 // v5 相機 pinch zoom:pointer 掛整個 cam-stage;camPinch* 內部無能力即 return,不吃單指按鈕點擊(不 capture、不 preventDefault)
 (() => { const cs = document.querySelector(".cam-stage"); if (!cs) return;
+  // iOS Safari 的捏合走專有 gesture 事件、且無視 user-scalable=no → 不擋就變「放大網頁」
+  ["gesturestart", "gesturechange", "gestureend"].forEach(t => cs.addEventListener(t, e => e.preventDefault()));
   cs.addEventListener("pointerdown", camPinchDown);
   cs.addEventListener("pointermove", camPinchMove);
   cs.addEventListener("pointerup", camPinchUp);
