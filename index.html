@@ -95,7 +95,7 @@ button:active:not(:disabled){transform:scale(.96);transition-duration:.12s;}  /*
 .s2{display:flex;flex-direction:column;background:var(--canvas);
   padding:env(safe-area-inset-top) 12px calc(12px + env(safe-area-inset-bottom));}
 .cam-stage{flex:1 1 auto;position:relative;margin-top:12px;border-radius:22px;overflow:hidden;
-  background:var(--primary);min-height:0;
+  background:var(--primary);min-height:0;isolation:isolate;
   touch-action:none;}  /* iOS Safari 無視 user-scalable=no,捏合會變網頁縮放;這裡必須自己攔 */
 .cam-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:var(--primary);}
 .cam-top{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;
@@ -176,7 +176,8 @@ button:active:not(:disabled){transform:scale(.96);transition-duration:.12s;}  /*
 
 /* stage = near-black 22px rounded media card floating on white */
 .stage{flex:1 1 auto;position:relative;background:var(--primary);overflow:hidden;
-  margin:12px;border-radius:22px;touch-action:none;-webkit-touch-callout:none;min-height:0;}
+  margin:12px;border-radius:22px;touch-action:none;-webkit-touch-callout:none;min-height:0;
+  isolation:isolate;}  /* WebKit 圓角裁切 composited video 的官方修法(bug 98538):自成 stacking context,免 per-frame mask layer */
 .mirror-wrap,.zoom-wrap{position:absolute;inset:0;transform-origin:center center;}  /* v5: 移除 will-change(iOS 記憶體反噬);動畫只 transform/opacity */
 #video{width:100%;height:100%;object-fit:contain;background:var(--primary);display:block;}
 .hud{position:absolute;top:10px;left:10px;z-index:2;background:rgba(0,0,0,.42);
@@ -726,7 +727,7 @@ async function doDelete(rec){
   cancelPendingSave(rec);                                        // 否則排隊中的 debounce 寫入會讓已刪 clip 復活
   if (!rec.memoryOnly && idbAvailable){ try{ await idbDelete(rec.id); }catch(_){} }
   const wasCur = rec.id === curId;
-  if (wasCur){ curId = null; video.removeAttribute("src"); video.load(); }   // 先解除引用再 revoke
+  if (wasCur){ curId = null; setVideoSrc(null); }               // 先解除引用再 revoke
   if (rec.url) URL.revokeObjectURL(rec.url);
   clips = clips.filter(c => c.id !== rec.id);
   renderLibrary();
@@ -753,10 +754,21 @@ function showQuotaWarn(){                                        // 配額不足
 }
 
 /* ======================= CLIP open / add / thumb / save ======================= */
+function setVideoSrc(url, type){
+  // iOS blob bug 家族(WebKit 232076 等)的 Apple 工程師 workaround:用 <source> 子元素,不直接設 video.src
+  video.removeAttribute("src");
+  [...video.querySelectorAll("source")].forEach(s => s.remove());
+  if (url){
+    const s = document.createElement("source");
+    s.src = url; if (type) s.type = type;
+    video.appendChild(s);
+  }
+  video.load();
+}
 function closeClipUrl(){
   const c = clips.find(x => x.id === curId);
   if (c && c.url){
-    if (video.src === c.url){ video.removeAttribute("src"); video.load(); }  // 先解除 video 引用再 revoke,免噴 ERR_FILE_NOT_FOUND
+    setVideoSrc(null);                                           // 先解除 video 引用再 revoke,免噴 ERR_FILE_NOT_FOUND
     URL.revokeObjectURL(c.url); c.url = null;
   }
 }
@@ -779,7 +791,7 @@ function openClip(id){
   seeking = false; seekTarget = null; hudOverride = null;       // 不重置會讓逐格永久卡死
   hideStageMsg();
   if (noteCtx) noteCtx.clearRect(0, 0, noteCanvas.width, noteCanvas.height);
-  video.src = rec.url; video.load();
+  setVideoSrc(rec.url, rec.blob && rec.blob.type);
   showScreen("S3");
   updateFpsChip();
   if (!fpsManual) tryContainerFps(rec);                         // 優先序:fpsManual > 容器 > rVFC
@@ -1321,8 +1333,10 @@ function toggleMirror(){ mirror = !mirror; applyTransform(); $("btnMirror").clas
 
 /* ======================= TRANSFORM (zoom/pan/mirror) ======================= */
 function applyTransform(){
-  mirrorWrap.style.transform = mirror ? "scaleX(-1)" : "none";  // mirror 最外層,pan 座標數學不用改
-  zoomWrap.style.transform = "translate(" + panX + "px," + panY + "px) scale(" + zoom + ")";
+  mirrorWrap.style.transform = mirror ? "scaleX(-1)" : "";      // mirror 最外層,pan 座標數學不用改
+  // 靜止態(無 zoom/pan/mirror)transform 整個清空:identity transform 也會逼出合成層,把 video 踢出快路徑
+  zoomWrap.style.transform = (zoom === 1 && !panX && !panY) ? "" :
+    "translate(" + panX + "px," + panY + "px) scale(" + zoom + ")";
 }
 function clampPanX(x){ const m = (zoom - 1) * stage.clientWidth / 2; return clamp(x, -m, m); }
 function clampPanY(y){ const m = (zoom - 1) * stage.clientHeight / 2; return clamp(y, -m, m); }
@@ -1485,7 +1499,7 @@ function drawStrokes(arr, ox, oy, cw, ch, scale, override, alpha){   // 座標 =
 }
 function renderNotes(){                                         // 目前幀 strokes(+ ghost + 進行中筆跡);任何時刻含播放中
   if (!noteCtx) return;
-  if (drawing || curStroke){ lastRenderKey = null; }           // v5 繪製中:每次都畫,並使快取失效(抬筆後首次 render 必重畫)
+  if (drawing || curStroke){ lastRenderKey = null; noteCanvas.style.display = ""; }  // v5 繪製中:每次都畫+快取失效;canvas 可能因空白被隱藏,叫回場
   else {                                                       // v5 髒檢查:frame/筆跡數/ghost 都沒變就 skip(避免播放中每幀無謂 clearRect)
     const r0 = curClip(), f0 = curAbs();
     const n0 = (r0 && r0.notes && r0.notes[f0]) ? r0.notes[f0].length : 0;
@@ -1494,6 +1508,9 @@ function renderNotes(){                                         // 目前幀 str
     const key = (n0 === 0 && (!ghostOn || !anyNotes)) ? "blank" : (f0 + ":" + n0 + ":" + (ghostOn ? 1 : 0));
     if (key === lastRenderKey) return;
     lastRenderKey = key;
+    // 空白幀:canvas 整層下場(canvas 疊 video 的合成層本身就是 iOS 已知效能雷),有內容才回來
+    noteCanvas.style.display = key === "blank" ? "none" : "";
+    if (key === "blank"){ noteCtx.setTransform(noteDpr, 0, 0, noteDpr, 0, 0); noteCtx.clearRect(0, 0, noteCanvas.width / noteDpr, noteCanvas.height / noteDpr); return; }
   }
   noteCtx.setTransform(noteDpr, 0, 0, noteDpr, 0, 0);
   const ew = noteCanvas.width / noteDpr, eh = noteCanvas.height / noteDpr;   // 整個舞台
