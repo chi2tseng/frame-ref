@@ -435,6 +435,7 @@ const STR = {
     camErrRecordUnsupported: "Recording not supported: ",
     playerErrFormat: "Unable to play this format",
     clipName: "Clip", langToggle: "中",
+    rampHint: "First ~{n} frames are sparse (camera warm-up) — trim to skip",
   },
   zh: {
     record: "錄影", importVideo: "載入影片", import: "載入",
@@ -450,6 +451,7 @@ const STR = {
     camErrRecordUnsupported: "錄影不支援:",
     playerErrFormat: "無法播放此格式",
     clipName: "Take", langToggle: "EN",
+    rampHint: "開頭 ~{n} 幀是相機暖機稀疏幀 — 可用裁切跳過",
   },
 };
 let lang = localStorage.getItem("frameref-lang") === "zh" ? "zh" : "en";   // 預設 en;不用 navigator.language
@@ -659,9 +661,23 @@ async function parseMp4Fps(blob){
         if (c > bestCount){ bestCount = c; bestDelta = d; }
       }
       if (!bestDelta || !timescale) return null;
+      // VFR 暖機偵測:iPhone 相機前 ~0.5s(曝光/對焦收斂)常只存稀疏幾張(delta 為眾數的數倍),
+      // 播放時畫面/幀號等距跳進(4→8→12)不是掉幀,是檔案裡本來就沒有那些幀。
+      let rampFrames = 0, rampTicks = 0;
+      outer: for (let i = 0; i < entries; i++){
+        const c = dv.getUint32(stts.dataStart + 8 + i * 8);
+        const d = dv.getUint32(stts.dataStart + 12 + i * 8);
+        for (let k = 0; k < c && rampFrames < 48; k++){
+          if (d >= bestDelta * 1.8){ rampFrames++; rampTicks += d; }
+          else break outer;
+        }
+      }
+      const rampSec = rampTicks / timescale;
       const raw = timescale / bestDelta;
-      for (const t of FPS_TABLE) if (Math.abs(raw - t) <= 0.5) return t;   // snap 常見值(±0.5 涵蓋 23.976/29.97/59.94)
-      return Math.round(raw * 100) / 100;                       // 表外用實際值
+      let f = null;
+      for (const t of FPS_TABLE) if (Math.abs(raw - t) <= 0.5){ f = t; break; }   // snap 常見值(±0.5 涵蓋 23.976/29.97/59.94)
+      if (f == null) f = Math.round(raw * 100) / 100;           // 表外用實際值
+      return { fps: f, rampFrames, rampSec };
     }
     return null;
   }catch(_){ return null; }                                     // 任何 throw 都不冒到 UI
@@ -801,12 +817,23 @@ function openClip(id){
   if (!fpsManual) tryContainerFps(rec);                         // 優先序:fpsManual > 容器 > rVFC
 }
 async function tryContainerFps(rec){
-  const f = await parseMp4Fps(rec.blob);                        // 已內含 try/catch,回 null 不炸
-  if (f && curId === rec.id && !fpsManual){
+  const r = await parseMp4Fps(rec.blob);                        // 已內含 try/catch,回 null 不炸
+  if (r && r.fps && curId === rec.id && !fpsManual){
     containerFpsResolved = true;                                // 解析成功 → 停用該片 rVFC 自動套用
-    if (f !== fps) { setFps(f); flashAutoChip(); }
-    if (rec.fps !== f){ rec.fps = f; persistSoon(rec); }
+    if (r.fps !== fps) { setFps(r.fps); flashAutoChip(); }
+    if (rec.fps !== r.fps){ rec.fps = r.fps; persistSoon(rec); }
+    // 暖機稀疏段:提示一次(每 clip 記憶),建議用裁切跳過 — 播放器救不回不存在的幀
+    if (r.rampFrames > 2 && !rec.rampHinted && trimIn === 0){
+      rec.rampHinted = true; persistSoon(rec);
+      const approxNominal = Math.max(1, Math.round(r.rampSec * r.fps));
+      showToast(t("rampHint").replace("{n}", approxNominal));
+    }
   }
+}
+function showToast(msg){                                         // 自動消失版 stageMsg(不佔用錯誤訊息用法)
+  showStageMsg(msg);
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(hideStageMsg, 3200);
 }
 function makeThumb(blob){                                        // 載入 metadata 後 seek 中點抓 canvas(短邊 ≤240,jpeg .7)
   return new Promise(res => {
@@ -834,7 +861,7 @@ function makeThumb(blob){                                        // 載入 metad
 }
 async function addClip(blob, name){
   const [info, pf] = await Promise.all([makeThumb(blob), parseMp4Fps(blob).catch(() => null)]);
-  const f = pf || 30, dur = info.dur || 0;
+  const f = (pf && pf.fps) || 30, dur = info.dur || 0;
   const total = Math.max(1, Math.floor(dur * f));
   const rec = { name: name || (t("clipName") + " " + (clips.length + 1)), blob, thumb: info.thumb,
     fps: f, fpsManual: false, trimIn: 0, trimOut: total - 1, dur,
