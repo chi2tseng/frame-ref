@@ -489,7 +489,7 @@ let annotMode = false, penColor = "#ff7759", penWidth = 4, ghostOn = false;  // 
 let noteCanvas = null, noteCtx = null, noteDpr = 1, lastNoteFrame = -1;
 let lastRenderKey = null;                  // v5 renderNotes 髒檢查:frame:strokes數:ghost態;不變就 skip(繪製中/強制失效時為 null)
 let drawing = false, curStroke = null, curPressures = null, noteDelTimer = null;
-let priming = false, lastSliderWrite = 0;   // priming=開片靜音預熱解碼中(UI 凍結);lastSliderWrite=播放中 slider 低頻寫入
+let priming = false, lastSliderWrite = 0, unmuteTimer = null;   // priming=開片靜音預熱(UI 凍結);unmuteTimer=起播 300ms 後開聲
 
 // speed
 const SPEEDS = [1, 0.5, 0.25], SPEED_LABELS = ["1×", "½×", "¼×"];
@@ -1299,19 +1299,30 @@ function showStageMsg(m){ const el = $("stageMsg"); el.textContent = m; el.class
 function hideStageMsg(){ $("stageMsg").classList.add("hidden"); }
 
 /* ======================= PLAYBACK / LOOP / SPEED / MIRROR ======================= */
+function startPlayback(){
+  // iOS 音訊時鐘追趕跳幀(起播 4 幀後直接跳到 ~14):音訊管線冷啟動慢半拍,就緒瞬間
+  // 影片被硬拉去對音訊主時鐘、中間幀整段丟棄。解法:起播先靜音(影片自己當主時鐘,
+  // 逐幀連續),300ms 管線熱了才把聲音悄悄接回來。
+  video.muted = true;
+  video.play().catch(()=>{});
+  clearTimeout(unmuteTimer);
+  unmuteTimer = setTimeout(() => { if (!video.paused && !priming) video.muted = false; }, 300);
+}
 function togglePlay(){
-  if (priming){                                                  // 預熱中按播放=直接轉正:取消凍結、開聲繼續播
-    priming = false; video.muted = false; playing = true; setPlayUI(true); hudOverride = null;
+  if (priming){                                                  // 預熱中按播放=直接轉正:取消凍結、續播(300ms 後開聲)
+    priming = false; playing = true; setPlayUI(true); hudOverride = null;
+    clearTimeout(unmuteTimer);
+    unmuteTimer = setTimeout(() => { if (!video.paused) video.muted = false; }, 300);
     return;
   }
   if (!video.paused){ video.pause(); return; }
   if (currentFrame() >= trimOut) seekToFrame(trimIn);            // 播完再按播放 = 從頭重播
-  if (video.readyState >= 3){ video.play().catch(()=>{}); return; }
+  if (video.readyState >= 3){ startPlayback(); return; }
   // 先載好再播:資料未就緒就等 canplaythrough(上限 1.2s 保底),不硬起播去掉幀
   setPlayUI(true);
   let started = false;
   const go = () => { if (started) return; started = true;
-    video.removeEventListener("canplaythrough", go); video.play().catch(()=>{}); };
+    video.removeEventListener("canplaythrough", go); startPlayback(); };
   video.addEventListener("canplaythrough", go, { once: true });
   setTimeout(go, 1200);
 }
@@ -1620,9 +1631,11 @@ video.addEventListener("seeked", () => {
 });
 video.addEventListener("timeupdate", () => { if (priming) return; if (!video.paused){ loopCheck(); updateHUD(); } });
 video.addEventListener("play", () => { if (priming) return; playing = true; setPlayUI(true); hudOverride = null; });
-video.addEventListener("pause", () => { if (priming) return; playing = false; setPlayUI(false); frameTarget = currentFrame(); updateHUD(); });
+video.addEventListener("pause", () => { if (priming) return;
+  clearTimeout(unmuteTimer); video.muted = false;               // 300ms 窗內暫停也把音訊旗標歸位
+  playing = false; setPlayUI(false); frameTarget = currentFrame(); updateHUD(); });
 video.addEventListener("ended", () => {                          // 自然結尾(loopCheck 沒攔到時的後備)
-  if (loopEnabled){ video.currentTime = (trimIn + 0.5) / fps; video.play().catch(()=>{}); }
+  if (loopEnabled){ video.currentTime = (trimIn + 0.5) / fps; startPlayback(); }   // 循環重啟同樣壓掉音訊追趕
   else { setPlayUI(false); seekToFrame(trimOut); }
 });
 video.addEventListener("error", () => { if (video.currentSrc) showStageMsg(t("playerErrFormat")); });
