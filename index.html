@@ -59,11 +59,13 @@ button:active:not(:disabled){transform:scale(.96);transition-duration:.12s;}  /*
   padding-top:env(safe-area-inset-top);}
 .lib-top{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;
   padding:16px 16px 12px;border-bottom:1px solid var(--hair);}
-.lib-title{font-size:22px;font-weight:500;letter-spacing:-.4px;}
-.lib-actions{display:flex;gap:8px;}
-.pill-btn{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 16px;
+.lib-title{font-size:22px;font-weight:500;letter-spacing:-.4px;white-space:nowrap;}
+.lib-actions{display:flex;gap:6px;flex-shrink:1;min-width:0;}
+.pill-btn{display:inline-flex;align-items:center;gap:5px;min-height:44px;padding:0 12px;
   border:1px solid var(--ink);border-radius:32px;background:transparent;color:var(--ink);
-  font-size:14px;font-weight:500;}
+  font-size:13px;font-weight:500;white-space:nowrap;}   /* EN 字串較長:緊縮+nowrap,勿撐爆頂列 */
+.pill-btn .material-symbols-outlined{font-size:18px;}
+@media (max-width:379px){ .lib-title{display:none;} }   /* 320~379 藏標題讓 Record/Import/中 放得下 */
 .pill-btn .material-symbols-outlined{font-size:20px;}
 .idb-warn{flex:0 0 auto;display:flex;align-items:center;gap:8px;margin:10px 16px 0;
   padding:10px 14px;border:1px solid var(--coral-soft);border-radius:16px;
@@ -1290,7 +1292,16 @@ function togglePlay(){
     priming = false; video.muted = false; playing = true; setPlayUI(true); hudOverride = null;
     return;
   }
-  if (video.paused) video.play().catch(()=>{}); else video.pause();
+  if (!video.paused){ video.pause(); return; }
+  if (currentFrame() >= trimOut) seekToFrame(trimIn);            // 播完再按播放 = 從頭重播
+  if (video.readyState >= 3){ video.play().catch(()=>{}); return; }
+  // 先載好再播:資料未就緒就等 canplaythrough(上限 1.2s 保底),不硬起播去掉幀
+  setPlayUI(true);
+  let started = false;
+  const go = () => { if (started) return; started = true;
+    video.removeEventListener("canplaythrough", go); video.play().catch(()=>{}); };
+  video.addEventListener("canplaythrough", go, { once: true });
+  setTimeout(go, 1200);
 }
 function setPlayUI(on){ $("btnPlay").querySelector(".material-symbols-outlined").textContent = on ? "pause" : "play_arrow"; }
 function loopCheck(){                                            // 裁切邊界(播放中每幀 rVFC / 或 timeupdate 檢查)
@@ -1608,7 +1619,12 @@ function primeDecoder(){                                         // 靜音短播
     priming = false; video.pause(); video.muted = wasMuted;
     seekToFrame(trimIn);
   };
-  video.play().then(() => setTimeout(endPrime, 140)).catch(() => { priming = false; video.muted = wasMuted; });
+  // 預熱到「整段可播」為止(canplaythrough),不是固定時長;500ms 保底不無限等
+  video.play().then(() => {
+    if (video.readyState >= 4) return setTimeout(endPrime, 140);
+    video.addEventListener("canplaythrough", endPrime, { once: true });
+    setTimeout(endPrime, 500);
+  }).catch(() => { priming = false; video.muted = wasMuted; });
 }
 
 function startRvfc(){
