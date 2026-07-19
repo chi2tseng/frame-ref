@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
@@ -7,6 +7,8 @@
 <link rel="icon" href="data:,">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
 <title>FrameRef</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500&family=Inter:wght@400;500&family=Material+Symbols+Outlined&display=block">
 <style>
@@ -52,7 +54,6 @@ button:active:not(:disabled){transform:scale(.96);transition-duration:.12s;}  /*
   min-height:60px;border:1px solid var(--ink);border-radius:32px;background:transparent;color:var(--ink);
   font-size:16px;font-weight:500;}
 .big-btn .material-symbols-outlined{font-size:24px;}
-.hint{color:#616161;font-size:12.5px;line-height:1.5;text-align:center;margin-top:4px;}  /* body-muted:白底對比 ≥4.5:1,--muted 只夠 metadata */
 /* full library */
 .lib-full{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;
   padding-top:env(safe-area-inset-top);}
@@ -96,8 +97,10 @@ button:active:not(:disabled){transform:scale(.96);transition-duration:.12s;}  /*
 .cam-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:var(--primary);}
 .cam-top{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;
   padding:12px 14px;z-index:2;}
-.cam-bottom{position:absolute;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;
-  padding:20px 28px 24px;z-index:2;}
+.cam-bottom{position:absolute;bottom:0;left:0;right:0;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
+  padding:20px 28px 24px;z-index:2;}  /* v5: grid 1fr/auto/1fr → REC 永遠在水平中線 */
+.cam-bottom>#btnFlip{justify-self:start;}
+.cam-bottom>#btnCountdown{justify-self:end;}
 .camicon{width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.4);color:#fff;
   display:flex;align-items:center;justify-content:center;}
 .lens-row{position:absolute;bottom:114px;left:0;right:0;display:flex;justify-content:center;gap:14px;z-index:2;}
@@ -113,13 +116,20 @@ button:active:not(:disabled){transform:scale(.96);transition-duration:.12s;}  /*
 .cam-chip{padding:6px 12px;border-radius:20px;background:rgba(0,0,0,.4);color:#fff;
   font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums;}
 .cam-chip:disabled{opacity:.4;}
+/* v5 無縫切換:acquire-then-swap 後套 120ms opacity 微 fade,蓋掉硬切感(Apple 式) */
+.cam-video.swapfade{animation:camSwap .12s var(--ease);}
+@keyframes camSwap{from{opacity:.6;}to{opacity:1;}}
+/* v5 相機 pinch zoom 讀數(有 getCapabilities().zoom 且 ≠1 才顯示;泡泡列右側) */
+.cam-zoom{position:absolute;right:16px;bottom:116px;z-index:2;padding:3px 8px;border-radius:14px;
+  background:rgba(0,0,0,.4);color:#fff;font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums;}
 /* 底部漸淡黑 scrim(下 ~1/3,非整塊黑)*/
 .cam-scrim{position:absolute;left:0;right:0;bottom:0;height:32%;z-index:1;pointer-events:none;
   background:linear-gradient(to top,rgba(0,0,0,.55),rgba(0,0,0,0));}
 .camicon .material-symbols-outlined{color:#fff;}
 .cd-label{font-size:15px;font-weight:500;color:#fff;}
 #btnCountdown.active{background:var(--coral);}
-.rec-time{font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:15px;color:#fff;
+.rec-time{position:absolute;left:50%;top:20px;transform:translateX(-50%);  /* v5: 絕對水平置中,不受 close/fps chip 寬度影響 */
+  font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:15px;color:#fff;
   background:rgba(0,0,0,.45);padding:5px 12px;border-radius:20px;display:flex;align-items:center;gap:6px;}
 .rec-time::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--coral);animation:blink 1s steps(1) infinite;}
 @keyframes blink{50%{opacity:.15;}}
@@ -164,7 +174,7 @@ button:active:not(:disabled){transform:scale(.96);transition-duration:.12s;}  /*
 /* stage = near-black 22px rounded media card floating on white */
 .stage{flex:1 1 auto;position:relative;background:var(--primary);overflow:hidden;
   margin:12px;border-radius:22px;touch-action:none;-webkit-touch-callout:none;min-height:0;}
-.mirror-wrap,.zoom-wrap{position:absolute;inset:0;transform-origin:center center;will-change:transform;}
+.mirror-wrap,.zoom-wrap{position:absolute;inset:0;transform-origin:center center;}  /* v5: 移除 will-change(iOS 記憶體反噬);動畫只 transform/opacity */
 #video{width:100%;height:100%;object-fit:contain;background:var(--primary);display:block;}
 .hud{position:absolute;top:10px;left:10px;z-index:2;background:rgba(0,0,0,.42);
   border-radius:8px;padding:5px 8px;pointer-events:none;}
@@ -229,12 +239,34 @@ button:active:not(:disabled){transform:scale(.96);transition-duration:.12s;}  /*
 .note-marks{position:relative;height:6px;margin:2px 10px 0;}
 .note-mark{position:absolute;top:0;width:2px;height:6px;background:var(--coral);transform:translateX(-1px);}
 #btnDraw.active{color:var(--coral);}
-.note-color{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:none;}
+.note-color{width:44px;height:44px;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;background:none;}  /* flex-shrink:0 防被壓到 <40 熱區 */
 .note-color::after{content:"";width:22px;height:22px;border-radius:50%;background:var(--nc);}
 .note-color.active::after{outline:2px solid var(--ink);outline-offset:3px;}   /* outline 非 box-shadow,守 Cohere 無陰影 */
 #btnGhost.active{color:var(--coral);}
 .sbtn:disabled{color:var(--hair);}
 .sbtn.confirm{color:var(--coral);}
+
+/* ===== v5 全機型適配(320px 起跳,直向為主、橫向可用;一律 CSS,無 JS 量測)===== */
+/* 窄機 ≤359(iPhone SE/mini 320~359):控制列不換行不重疊、可見鈕 ≥40px */
+@media (max-width:359px){
+  .brand{font-size:14px;}                 /* 頂欄 brand 縮字讓出 icon 群空間 */
+  .transport{padding:4px 8px;gap:4px;}    /* transport 收邊距 */
+  .transport>.t-gap{flex-grow:0;}         /* 兩端留白歸零,5 鈕撐滿(320 → ~52px) */
+  .sbtn{width:40px;height:40px;}          /* icon 鈕 40(達觸控下限) */
+  .note-color{width:40px;height:40px;}    /* draw 層 note-color 縮 40 */
+  .mode-layer{padding:0 4px;gap:3px;}     /* draw 層 7 項在 320 擠得下不溢出 */
+  .trim-done{padding:0 10px;}
+}
+/* 橫向矮視窗:不做專屬版型,只壓縮高度求「可用不破」 */
+@media (orientation:landscape) and (max-height:500px){
+  .stage{margin:6px 12px;}
+  .frame-num{font-size:15px;}
+  .timecode{font-size:10px;}
+  .scrub-wrap{padding:0;}
+  .transport{padding:2px 16px;}
+  .tbtn{height:44px;}
+  .mode-deck{height:44px;}
+}
 
 /* 動效降級:尊重系統「減少動態效果」 */
 @media (prefers-reduced-motion: reduce){
@@ -249,17 +281,17 @@ button:active:not(:disabled){transform:scale(.96);transition-duration:.12s;}  /*
   <div id="screenS1" class="screen s1">
     <div id="libEmpty" class="lib-empty">
       <div class="s1-inner">
-        <button id="btnRecEmpty" class="big-btn"><span class="material-symbols-outlined">videocam</span>錄影</button>
-        <button id="btnLoadEmpty" class="big-btn"><span class="material-symbols-outlined">upload</span>載入影片</button>
-        <p class="hint">高格數建議用原生相機拍(可用慢動作 240fps),再從圖庫載入</p>
+        <button id="btnRecEmpty" class="big-btn"><span class="material-symbols-outlined">videocam</span><span data-i18n="record">Record</span></button>
+        <button id="btnLoadEmpty" class="big-btn"><span class="material-symbols-outlined">upload</span><span data-i18n="importVideo">Import Video</span></button>
       </div>
     </div>
     <div id="libFull" class="lib-full hidden">
       <div class="lib-top">
         <div class="lib-title">FrameRef</div>
         <div class="lib-actions">
-          <button id="btnRecPill" class="pill-btn"><span class="material-symbols-outlined">videocam</span>錄影</button>
-          <button id="btnLoadPill" class="pill-btn"><span class="material-symbols-outlined">upload</span>載入</button>
+          <button id="btnRecPill" class="pill-btn"><span class="material-symbols-outlined">videocam</span><span data-i18n="record">Record</span></button>
+          <button id="btnLoadPill" class="pill-btn"><span class="material-symbols-outlined">upload</span><span data-i18n="import">Import</span></button>
+          <button id="btnLang" class="trim-reset" data-i18n="langToggle">中</button>
         </div>
       </div>
       <div id="idbWarn" class="idb-warn hidden"><span class="material-symbols-outlined">warning</span><span id="idbWarnText"></span></div>
@@ -280,6 +312,7 @@ button:active:not(:disabled){transform:scale(.96);transition-duration:.12s;}  /*
         <button id="btnCamFps" class="cam-chip">60 fps</button>
       </div>
       <div id="lensRow" class="lens-row hidden"></div>
+      <div id="camZoomLabel" class="cam-zoom hidden">1.0×</div>
       <div class="cam-bottom">
         <button id="btnFlip" class="camicon"><span class="material-symbols-outlined">flip_camera_ios</span></button>
         <button id="btnRec" class="rec-btn"><span class="rec-dot"></span></button>
@@ -293,7 +326,7 @@ button:active:not(:disabled){transform:scale(.96);transition-duration:.12s;}  /*
     <div class="topbar">
       <div class="brand">FrameRef</div>
       <div class="top-actions">
-        <span id="idbWarnTop" class="sbtn warn-top hidden" title="本機儲存不可用,離開後不保留"><span class="material-symbols-outlined">warning</span></span>
+        <span id="idbWarnTop" class="sbtn warn-top hidden" data-i18n-title="idbWarnTitle" title="Local storage unavailable — won't be kept after you leave"><span class="material-symbols-outlined">warning</span></span>
         <button id="btnFps" class="chip">30<span class="fps-unit">fps</span></button>
         <button id="btnMirror" class="sbtn"><span class="material-symbols-outlined">flip</span></button>
         <button id="btnSave" class="sbtn"><span class="material-symbols-outlined">download</span></button>
@@ -359,11 +392,11 @@ button:active:not(:disabled){transform:scale(.96);transition-duration:.12s;}  /*
         <button id="btnGhost" class="sbtn"><span class="material-symbols-outlined">animation</span></button>
         <button id="btnNoteUndo" class="sbtn"><span class="material-symbols-outlined">undo</span></button>
         <button id="btnNoteClear" class="sbtn"><span class="material-symbols-outlined">delete</span></button>
-        <button id="btnDrawDone" class="trim-done">完成</button>
+        <button id="btnDrawDone" class="trim-done" data-i18n="done">Done</button>
       </div>
       <div id="modeTrim" class="mode-layer">
-        <button id="btnTrimReset" class="trim-reset">重置</button>
-        <button id="btnTrimDone" class="trim-done">完成</button>
+        <button id="btnTrimReset" class="trim-reset" data-i18n="reset">Reset</button>
+        <button id="btnTrimDone" class="trim-done" data-i18n="done">Done</button>
       </div>
     </div>
   </div>
@@ -377,6 +410,56 @@ button:active:not(:disabled){transform:scale(.96);transition-duration:.12s;}  /*
 const $ = id => document.getElementById(id);
 const video = $("video"), stage = $("stage"), mirrorWrap = $("mirrorWrap"),
       zoomWrap = $("zoomWrap"), slider = $("slider");
+
+/* ======================= I18N ======================= */
+const STR = {
+  en: {
+    record: "Record", importVideo: "Import Video", import: "Import",
+    done: "Done", reset: "Reset", confirmDelete: "Sure?",
+    idbWarnTitle: "Local storage unavailable — won't be kept after you leave",
+    idbWarnText: "Local storage unavailable, videos won't be kept after you leave",
+    quotaStageMsg: "Storage full, this clip is only available this session",
+    quotaWarnText: "Storage full, some videos are only available this session",
+    camErrHttps: "In-page recording needs HTTPS; use “Import Video”, or wait for HTTPS deployment",
+    camErrUnsupported: "This browser doesn't support in-page camera, please use “Import Video”",
+    camErrPermission: "Camera permission denied — allow it in iOS Settings > Safari > Camera, or use “Import Video”",
+    camErrGeneric: "Camera error: ", camErrSwitch: "Unable to switch: ",
+    camErrRecordUnsupported: "Recording not supported: ",
+    playerErrFormat: "Unable to play this format",
+    clipName: "Clip", langToggle: "中",
+  },
+  zh: {
+    record: "錄影", importVideo: "載入影片", import: "載入",
+    done: "完成", reset: "重置", confirmDelete: "確認?",
+    idbWarnTitle: "本機儲存不可用,離開後不保留",
+    idbWarnText: "本機儲存不可用,影片離開後不保留",
+    quotaStageMsg: "儲存空間不足,此片僅本次可用",
+    quotaWarnText: "儲存空間不足,部分影片僅本次可用",
+    camErrHttps: "頁面內錄影需要 HTTPS;請用「載入影片」,或等部署到 HTTPS 網址",
+    camErrUnsupported: "此瀏覽器不支援頁面內相機,請改用「載入影片」",
+    camErrPermission: "相機權限被拒——到 iOS 設定 > Safari > 相機 允許,或改用「載入影片」",
+    camErrGeneric: "相機錯誤:", camErrSwitch: "無法切換:",
+    camErrRecordUnsupported: "錄影不支援:",
+    playerErrFormat: "無法播放此格式",
+    clipName: "Take", langToggle: "EN",
+  },
+};
+let lang = localStorage.getItem("frameref-lang") === "zh" ? "zh" : "en";   // 預設 en;不用 navigator.language
+const t = key => (STR[lang] && STR[lang][key] != null) ? STR[lang][key] : STR.en[key];
+function applyLang(){                                            // 集中掃 data-i18n(文字)/ data-i18n-title(title 屬性)+ 動態警示文字同步
+  document.documentElement.lang = lang === "zh" ? "zh-Hant" : "en";
+  document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-title]").forEach(el => { el.title = t(el.dataset.i18nTitle); });
+  const w = $("idbWarn");
+  if (w.dataset.quota) $("idbWarnText").textContent = t("quotaWarnText");
+  else if (!idbAvailable) $("idbWarnText").textContent = t("idbWarnText");
+}
+function setLang(l){
+  lang = l === "zh" ? "zh" : "en";
+  localStorage.setItem("frameref-lang", lang);
+  applyLang();
+}
+function toggleLang(){ setLang(lang === "en" ? "zh" : "en"); }
 
 let scr = "S1";
 let fps = 30, totalFrames = 1, frameTarget = 0;
@@ -400,6 +483,7 @@ let loopEnabled = false;
 // 逐幀畫筆標註(SyncSketch 式):strokes 存 rec.notes["<絕對幀>"]=[{c,w,pts:[[x,y]...]}]
 let annotMode = false, penColor = "#ff7759", penWidth = 4, ghostOn = false;  // 固定粗細 4(1080p 基準),壓感照舊
 let noteCanvas = null, noteCtx = null, noteDpr = 1, lastNoteFrame = -1;
+let lastRenderKey = null;                  // v5 renderNotes 髒檢查:frame:strokes數:ghost態;不變就 skip(繪製中/強制失效時為 null)
 let drawing = false, curStroke = null, curPressures = null, noteDelTimer = null;
 
 // speed
@@ -416,6 +500,11 @@ let stream = null, recorder = null, chunks = [], facing = "environment", lensId 
 let recTimerIv = null, recStart = 0, countdown3 = false, cdIv = null;
 let camFps = 60;                          // 相機拍攝 fps 偏好(session 變數,重進相機沿用)
 const CAM_FPS_CYCLE = [24, 30, 60];
+let switching = false;                    // v5 無縫切換重入鎖(acquire-then-swap 進行中)
+// v5 相機 pinch zoom(能力偵測:有 getCapabilities().zoom 才啟用;無能力全程不作用、不顯示)
+let camZoomCap = null, camZoom = 1;
+const camPointers = new Map();
+let camPinchStartDist = 0, camPinchStartZoom = 1, camZoomRAF = null, camZoomPending = null;
 
 // fps auto-detect(rVFC fallback 路徑)
 let fpsSamples = [];
@@ -571,6 +660,9 @@ async function parseMp4Fps(blob){
 
 /* ======================= SCREENS ======================= */
 function showScreen(s){
+  if (scr === "S2" && s !== "S2"){                              // v5 省電:離開相機確保停流 + 釋放預覽(srcObject=null)
+    stopStream(); const cv = $("camVideo"); if (cv) cv.srcObject = null;
+  }
   scr = s;
   const map = { S1: "screenS1", S2: "screenS2", S3: "screenS3" };
   for (const k in map){
@@ -617,7 +709,7 @@ function startRename(rec, nmEl){
 function confirmDelete(rec, xEl){                                // 兩段式:第一下變「確認?」,再點才刪
   if (pendingDel && pendingDel.rec === rec){ clearPendingDel(); doDelete(rec); return; }
   clearPendingDel();
-  xEl.classList.add("confirm"); xEl.innerHTML = '<span class="del-confirm">確認?</span>';
+  xEl.classList.add("confirm"); xEl.innerHTML = '<span class="del-confirm">' + t("confirmDelete") + '</span>';
   pendingDel = { rec, xEl };
 }
 function clearPendingDel(){
@@ -646,14 +738,14 @@ function setIdbWarn(){
   const off = !idbAvailable;
   $("idbWarnTop").classList.toggle("hidden", !off);
   const w = $("idbWarn");
-  if (off){ $("idbWarnText").textContent = "本機儲存不可用,影片離開後不保留"; w.classList.remove("hidden"); }
+  if (off){ $("idbWarnText").textContent = t("idbWarnText"); w.classList.remove("hidden"); }
   else if (!w.dataset.quota) w.classList.add("hidden");
 }
 function showQuotaWarn(){                                        // 配額不足:此片僅本次可用
-  showStageMsg("儲存空間不足,此片僅本次可用");
+  showStageMsg(t("quotaStageMsg"));
   setTimeout(hideStageMsg, 2600);
   const w = $("idbWarn"); w.dataset.quota = "1";
-  $("idbWarnText").textContent = "儲存空間不足,部分影片僅本次可用"; w.classList.remove("hidden");
+  $("idbWarnText").textContent = t("quotaWarnText"); w.classList.remove("hidden");
 }
 
 /* ======================= CLIP open / add / thumb / save ======================= */
@@ -676,7 +768,7 @@ function openClip(id){
   containerFpsResolved = false;
   fpsSamples = [];
   fsThumbCache = null; fsBuildToken++; fsDragType = null;       // filmstrip 縮圖 per-clip 快取,切片作廢
-  drawing = false; curStroke = null; lastNoteFrame = -1;        // 標註暫態歸零(annotMode 開關本身沿用)
+  drawing = false; curStroke = null; lastNoteFrame = -1; lastRenderKey = null;  // 標註暫態歸零 + 換 clip 強制重繪(annotMode 開關本身沿用)
   clearTimeout(noteDelTimer); noteDelTimer = null; $("btnNoteClear").classList.remove("confirm");
   trimMode = false; syncTrimUI();                              // 回 slider,關 filmstrip
   if (!video.paused) video.pause();
@@ -724,7 +816,7 @@ async function addClip(blob, name){
   const [info, pf] = await Promise.all([makeThumb(blob), parseMp4Fps(blob).catch(() => null)]);
   const f = pf || 30, dur = info.dur || 0;
   const total = Math.max(1, Math.floor(dur * f));
-  const rec = { name: name || ("Clip " + (clips.length + 1)), blob, thumb: info.thumb,
+  const rec = { name: name || (t("clipName") + " " + (clips.length + 1)), blob, thumb: info.thumb,
     fps: f, fpsManual: false, trimIn: 0, trimOut: total - 1, dur,
     vw: info.vw || 0, vh: info.vh || 0, created: Date.now() };
   if (idbAvailable){
@@ -750,34 +842,112 @@ function saveClip(){                                             // 下載原始
 async function enterCamera(){
   showScreen("S2"); hideCamErr();
   if (!window.isSecureContext){
-    showCamErr("頁面內錄影需要 HTTPS;請用「載入影片」,或等部署到 HTTPS 網址"); return;
+    showCamErr(t("camErrHttps")); return;
   }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-    showCamErr("此瀏覽器不支援頁面內相機,請改用「載入影片」"); return;
+    showCamErr(t("camErrUnsupported")); return;
   }
   await startStream();
 }
-async function startStream(){
+function buildVideoConstraints(){                               // 選了特定鏡頭(iPhone 0.5×/1×/長焦)用 deviceId,否則用 facingMode
+  return lensId ? { deviceId: { exact: lensId }, width: { ideal: 1920 }, frameRate: { ideal: camFps } }
+                : { facingMode: facing, width: { ideal: 1920 }, frameRate: { ideal: camFps } };
+}
+function applyCamPreview(){                                     // 新流上線後的預覽設定(srcObject 已賦值)
+  const cam = $("camVideo");
+  cam.play().catch(()=>{});
+  cam.style.transform = facing === "user" ? "scaleX(-1)" : "none";  // 前鏡預覽鏡像,錄檔不鏡像
+  hideCamErr(); updateLensRow(); updateCamFpsChip(); setupPinchZoom();
+}
+async function startStream(){                                  // 首次開啟(enterCamera):沒有舊流可保,直接取得
   stopStream();
   try{
-    // 選了特定鏡頭(iPhone 0.5×/1×/長焦)用 deviceId,否則用 facingMode
-    const vc = lensId ? { deviceId: { exact: lensId }, width: { ideal: 1920 }, frameRate: { ideal: camFps } }
-                      : { facingMode: facing, width: { ideal: 1920 }, frameRate: { ideal: camFps } };
-    stream = await navigator.mediaDevices.getUserMedia({ video: vc, audio: true });
+    stream = await navigator.mediaDevices.getUserMedia({ video: buildVideoConstraints(), audio: true });
     $("camVideo").srcObject = stream;
-    $("camVideo").play().catch(()=>{});
-    $("camVideo").style.transform = facing === "user" ? "scaleX(-1)" : "none";  // 前鏡預覽鏡像,錄檔不鏡像
-    hideCamErr();
-    updateLensRow();
-    updateCamFpsChip();                                                          // 顯示新串流的實際 fps
+    applyCamPreview();
   }catch(err){
     if (err.name === "OverconstrainedError" && lensId){ lensId = null; return startStream(); }  // 記住的鏡頭不存在了 → 退回 facingMode
     if (err.name === "NotAllowedError")
-      showCamErr("相機權限被拒——到 iOS 設定 > Safari > 相機 允許,或改用「載入影片」");
-    else showCamErr("相機錯誤:" + err.name);
+      showCamErr(t("camErrPermission"));
+    else showCamErr(t("camErrGeneric") + err.name);
   }
 }
-function stopStream(){ if (stream){ stream.getTracks().forEach(t => t.stop()); stream = null; } }
+async function switchStream(){                                 // v5 無縫切換鏡頭/前後:先拿新流(舊流繼續播),ready 才 swap + 停舊 track
+  if (switching) return;                                       // 重入鎖(快連按不重複取得)
+  switching = true;
+  let next = null;
+  try{
+    next = await navigator.mediaDevices.getUserMedia({ video: buildVideoConstraints(), audio: true });
+  }catch(err){
+    switching = false;
+    if (err.name === "OverconstrainedError" && lensId){ lensId = null; return switchStream(); }  // 記住的鏡頭沒了 → 退回 facingMode(舊流仍在)
+    // 失敗:舊 stream 原封不動繼續用,inline 顯示錯誤一下(不打斷)
+    showCamErr(err.name === "NotAllowedError"
+      ? t("camErrPermission")
+      : t("camErrSwitch") + err.name);
+    setTimeout(hideCamErr, 1800);
+    return;
+  }
+  const old = stream;                                          // 新流 ready 才動 srcObject / 停舊
+  stream = next;
+  const cam = $("camVideo");
+  cam.srcObject = next;
+  cam.classList.remove("swapfade"); void cam.offsetWidth; cam.classList.add("swapfade");  // 120ms opacity 0.6→1 微 fade
+  applyCamPreview();
+  if (old) old.getTracks().forEach(t => t.stop());            // 舊 track 停在新流上線之後(失敗路徑走不到這)
+  switching = false;
+}
+function stopStream(){
+  if (stream){ stream.getTracks().forEach(t => t.stop()); stream = null; }
+  camZoomCap = null; camZoom = 1; camPointers.clear(); updateCamZoomLabel();   // v5 離開相機清 zoom 態
+}
+/* v5 相機 pinch zoom:能力偵測(getCapabilities().zoom),有才啟用;applyConstraints advanced zoom,rAF 節流,clamp min/max */
+function setupPinchZoom(){
+  const t = stream && stream.getVideoTracks()[0];
+  const caps = t && t.getCapabilities ? t.getCapabilities() : null;
+  if (caps && caps.zoom && typeof caps.zoom.max === "number" && caps.zoom.max > (caps.zoom.min || 1)){
+    camZoomCap = { min: caps.zoom.min || 1, max: caps.zoom.max };
+    const s = t.getSettings ? t.getSettings() : null;
+    camZoom = (s && s.zoom) || camZoomCap.min || 1;
+  } else { camZoomCap = null; camZoom = 1; }                   // 無 zoom 能力 → pinch 無作用、不顯示
+  camPointers.clear();
+  updateCamZoomLabel();
+}
+function updateCamZoomLabel(){
+  const el = $("camZoomLabel"); if (!el) return;
+  const show = !!camZoomCap && Math.abs(camZoom - 1) > 0.05;   // 有能力且 ≠1 才顯示
+  el.classList.toggle("hidden", !show);
+  if (show) el.textContent = camZoom.toFixed(1) + "×";
+}
+function camApplyZoom(z){
+  if (!camZoomCap) return;
+  camZoom = clamp(z, camZoomCap.min, camZoomCap.max);          // clamp 能力 min/max
+  camZoomPending = camZoom;
+  if (!camZoomRAF) camZoomRAF = requestAnimationFrame(() => {  // rAF 節流,避免每 move 打 applyConstraints
+    camZoomRAF = null;
+    const t = stream && stream.getVideoTracks()[0];
+    if (t && camZoomPending != null) t.applyConstraints({ advanced: [{ zoom: camZoomPending }] }).catch(()=>{});
+  });
+  updateCamZoomLabel();
+}
+function camPinchDown(e){
+  if (!camZoomCap) return;                                     // 無能力 = 完全不呼叫
+  camPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (camPointers.size === 2){
+    const p = [...camPointers.values()];
+    camPinchStartDist = dist(p[0], p[1]) || 1;
+    camPinchStartZoom = camZoom;
+  }
+}
+function camPinchMove(e){
+  if (!camZoomCap || !camPointers.has(e.pointerId)) return;
+  camPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (camPointers.size >= 2){
+    const p = [...camPointers.values()];
+    camApplyZoom(camPinchStartZoom * ((dist(p[0], p[1]) || 1) / camPinchStartDist));
+  }
+}
+function camPinchUp(e){ camPointers.delete(e.pointerId); }
 function lensShortLabel(label, idx){                            // 泡泡標:仿 iPhone .5/1/2/A
   const l = (label || "").toLowerCase();
   if (/ultra|超廣/.test(l)) return ".5";
@@ -809,7 +979,7 @@ async function updateLensRow(){
 function switchLens(id){
   if (recorder && recorder.state === "recording") return;             // 換流會斷錄影,錄影中禁切
   if (cdIv) return;                                                   // 倒數中也不切
-  lensId = id; startStream();
+  lensId = id; switchStream();                                        // v5 無縫:acquire-then-swap
 }
 function updateCamFpsChip(){                                          // 顯示裝置回報的實際 fps(給不到就顯示偏好值,不騙人)
   const t = stream && stream.getVideoTracks()[0];
@@ -824,7 +994,7 @@ async function cycleCamFps(){                                         // tap 循
   const t = stream && stream.getVideoTracks()[0];
   if (t){
     try{ await t.applyConstraints({ frameRate: { ideal: camFps, max: camFps } }); }  // 先試不重啟串流
-    catch(_){ await startStream(); }                                                 // reject → 重啟串流(帶新 frameRate)
+    catch(_){ await switchStream(); }                                                // reject → v5 無縫換流(帶新 frameRate)
   }
   updateCamFpsChip();
 }
@@ -852,7 +1022,7 @@ function startRec(){
   if (!stream) return;
   chunks = []; const mime = pickMime();
   try{ recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream); }
-  catch(e){ showCamErr("錄影不支援:" + e.name); return; }
+  catch(e){ showCamErr(t("camErrRecordUnsupported") + e.name); return; }
   recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
   recorder.onstop = () => { const type = recorder.mimeType || mime || "video/mp4";
     onNewRecording(new Blob(chunks, { type })); };
@@ -921,7 +1091,7 @@ function setFps(f){
   if (srec && (srec.fps !== fps || srec.trimIn !== trimIn || srec.trimOut !== trimOut || old !== fps)){
     srec.fps = fps; srec.trimIn = trimIn; srec.trimOut = trimOut; persistSoon(srec);
   }
-  updateFpsChip(); syncTrimUI(); lastNoteFrame = -1; renderNotes(); updateNoteMarks(); updateHUD();
+  updateFpsChip(); syncTrimUI(); lastNoteFrame = -1; lastRenderKey = null; renderNotes(); updateNoteMarks(); updateHUD();  // reproject 後強制重繪
 }
 
 /* ======================= TRIM + FILMSTRIP (iPhone 式非破壞裁切) ======================= */
@@ -1014,7 +1184,8 @@ function updateFilmstrip(){                                     // 依 trimIn/tr
   $("fsHandleL").style.left = inPct + "%";
   $("fsHandleR").style.left = outPct + "%";
   const cf = clamp(seeking ? frameTarget : currentFrame(), 0, last);
-  $("fsPlayhead").style.left = (cf / last * 100) + "%";
+  const ph = (cf / last * 100) + "%";
+  const phEl = $("fsPlayhead"); if (phEl.style.left !== ph) phEl.style.left = ph;   // v5 playhead 值變才寫
 }
 function resetTrim(){ trimIn = 0; trimOut = Math.max(0, totalFrames - 1); applyTrim(); }
 function applyTrim(){                                            // 生效 + persist(非破壞,原檔不動);seek clamp 回窗內
@@ -1088,9 +1259,11 @@ function applyAutoFps(f){
 /* ======================= HUD (顯示層相對幀) ======================= */
 function updateHUD(){
   const absF = clamp(hudOverride != null ? hudOverride : currentFrame(), trimIn, trimOut);
-  $("frameNum").textContent = "#" + String(dispFrame(absF)).padStart(4, "0");
-  $("timecode").textContent = fmtTC(dispFrame(absF)) + " / " + fmtTC(dispTotal() - 1);
-  if (!scrubbing) slider.value = absF;
+  const fn = "#" + String(dispFrame(absF)).padStart(4, "0");                        // v5 寫入去重:值變才寫(顯示結果不變,只省每幀 DOM 寫入/layout)
+  const fnEl = $("frameNum"); if (fnEl.textContent !== fn) fnEl.textContent = fn;
+  const tc = fmtTC(dispFrame(absF)) + " / " + fmtTC(dispTotal() - 1);
+  const tcEl = $("timecode"); if (tcEl.textContent !== tc) tcEl.textContent = tc;
+  if (!scrubbing){ const sv = String(absF); if (slider.value !== sv) slider.value = sv; }  // slider 值變才寫
   if (trimMode) updateFilmstrip();
   if (!drawing && absF !== lastNoteFrame){ lastNoteFrame = absF; renderNotes(); }  // 幀變才重繪筆跡(便宜)
 }
@@ -1226,9 +1399,9 @@ function layoutNoteCanvas(){                                    // v4:canvas = �
   const ew = zoomWrap.clientWidth, eh = zoomWrap.clientHeight;
   noteCanvas.style.left = "0px"; noteCanvas.style.top = "0px";
   noteCanvas.style.width = ew + "px"; noteCanvas.style.height = eh + "px";
-  noteDpr = window.devicePixelRatio || 1;
+  noteDpr = Math.min(window.devicePixelRatio || 1, 2);         // v5: backing store dpr 上限 2(iPhone dpr=3 → 填充成本 −55%)
   noteCanvas.width = Math.max(1, Math.round(ew * noteDpr)); noteCanvas.height = Math.max(1, Math.round(eh * noteDpr));
-  lastNoteFrame = -1; renderNotes();                           // 尺寸變 → 強制重繪
+  lastNoteFrame = -1; lastRenderKey = null; renderNotes();     // 尺寸變 → 強制重繪(canvas 已清空,不重繪會殘影/消失)
 }
 function noteXY(e){                                             // pointer → 內容框 normalized(可 <0/>1,直接存);鏡像存未鏡像基準(x=1-x)
   const r = noteCanvas.getBoundingClientRect();                // = 舞台變換後 AABB;比例對 zoom/pan 不變
@@ -1287,6 +1460,16 @@ function drawStrokes(arr, ox, oy, cw, ch, scale, override, alpha){   // 座標 =
 }
 function renderNotes(){                                         // 目前幀 strokes(+ ghost + 進行中筆跡);任何時刻含播放中
   if (!noteCtx) return;
+  if (drawing || curStroke){ lastRenderKey = null; }           // v5 繪製中:每次都畫,並使快取失效(抬筆後首次 render 必重畫)
+  else {                                                       // v5 髒檢查:frame/筆跡數/ghost 都沒變就 skip(避免播放中每幀無謂 clearRect)
+    const r0 = curClip(), f0 = curAbs();
+    const n0 = (r0 && r0.notes && r0.notes[f0]) ? r0.notes[f0].length : 0;
+    const anyNotes = !!(r0 && r0.notes && Object.keys(r0.notes).length);
+    // 本幀無可畫內容(且 ghost 也無來源)→ 空白對空白,幀號變了也不用重清 → 無筆跡片播放= canvas 零工作
+    const key = (n0 === 0 && (!ghostOn || !anyNotes)) ? "blank" : (f0 + ":" + n0 + ":" + (ghostOn ? 1 : 0));
+    if (key === lastRenderKey) return;
+    lastRenderKey = key;
+  }
   noteCtx.setTransform(noteDpr, 0, 0, noteDpr, 0, 0);
   const ew = noteCanvas.width / noteDpr, eh = noteCanvas.height / noteDpr;   // 整個舞台
   noteCtx.clearRect(0, 0, ew, eh);
@@ -1399,7 +1582,7 @@ video.addEventListener("ended", () => {                          // 自然結尾
   if (loopEnabled){ video.currentTime = (trimIn + 0.5) / fps; video.play().catch(()=>{}); }
   else { setPlayUI(false); seekToFrame(trimOut); }
 });
-video.addEventListener("error", () => { if (video.currentSrc) showStageMsg("無法播放此格式"); });
+video.addEventListener("error", () => { if (video.currentSrc) showStageMsg(t("playerErrFormat")); });
 
 function startRvfc(){
   if (!rvfcSupported) return;
@@ -1460,6 +1643,7 @@ $("btnRecEmpty").addEventListener("click", enterCamera);
 $("btnLoadEmpty").addEventListener("click", () => $("fileInput").click());
 $("btnRecPill").addEventListener("click", enterCamera);
 $("btnLoadPill").addEventListener("click", () => $("fileInput").click());
+$("btnLang").addEventListener("click", toggleLang);
 $("fileInput").addEventListener("change", e => {                // 不加 capture、不檢查副檔名(.mov 直接餵)
   const f = e.target.files[0]; if (!f) return;
   addClip(f, f.name.slice(0, 12));
@@ -1477,9 +1661,16 @@ $("btnFlip").addEventListener("click", () => {
   if (recorder && recorder.state === "recording") return;      // 錄影中禁切鏡頭(換流會中斷錄影)
   facing = facing === "user" ? "environment" : "user";
   lensId = null;                                               // 換面即放棄特定鏡頭選擇,回 facingMode
-  startStream();
+  switchStream();                                              // v5 無縫:舊流續播到新流 ready
 });
 $("btnCountdown").addEventListener("click", () => { countdown3 = !countdown3; $("btnCountdown").classList.toggle("active", countdown3); });
+// v5 相機 pinch zoom:pointer 掛整個 cam-stage;camPinch* 內部無能力即 return,不吃單指按鈕點擊(不 capture、不 preventDefault)
+(() => { const cs = document.querySelector(".cam-stage"); if (!cs) return;
+  cs.addEventListener("pointerdown", camPinchDown);
+  cs.addEventListener("pointermove", camPinchMove);
+  cs.addEventListener("pointerup", camPinchUp);
+  cs.addEventListener("pointercancel", camPinchUp);
+})();
 // S3 top
 $("btnFps").addEventListener("click", toggleFpsPop);
 $("btnMirror").addEventListener("click", toggleMirror);
@@ -1534,6 +1725,7 @@ document.addEventListener("click", () => { if (pendingDel) clearPendingDel(); })
 
 /* ======================= INIT ======================= */
 async function init(){
+  applyLang();
   initNoteCanvas();
   updateFpsChip(); setPlayUI(false);
   try{ const db = await idbOpen(); db.close && db.close(); idbAvailable = true; }
@@ -1545,6 +1737,9 @@ async function init(){
   setIdbWarn(); renderLibrary(); showScreen("S1");
 }
 init();
+
+// v5 PWA:service worker 註冊(靜默 try/catch,localhost 也照註冊;不 await、不擋主流程)
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
 </html>
