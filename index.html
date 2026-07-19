@@ -486,6 +486,7 @@ let annotMode = false, penColor = "#ff7759", penWidth = 4, ghostOn = false;  // 
 let noteCanvas = null, noteCtx = null, noteDpr = 1, lastNoteFrame = -1;
 let lastRenderKey = null;                  // v5 renderNotes 髒檢查:frame:strokes數:ghost態;不變就 skip(繪製中/強制失效時為 null)
 let drawing = false, curStroke = null, curPressures = null, noteDelTimer = null;
+let priming = false, lastSliderWrite = 0;   // priming=開片靜音預熱解碼中(UI 凍結);lastSliderWrite=播放中 slider 低頻寫入
 
 // speed
 const SPEEDS = [1, 0.5, 0.25], SPEED_LABELS = ["1×", "½×", "¼×"];
@@ -1259,12 +1260,18 @@ function applyAutoFps(f){
 
 /* ======================= HUD (顯示層相對幀) ======================= */
 function updateHUD(){
+  if (priming) return;                                           // 預熱中 UI 凍結
   const absF = clamp(hudOverride != null ? hudOverride : currentFrame(), trimIn, trimOut);
   const fn = "#" + String(dispFrame(absF)).padStart(4, "0");                        // v5 寫入去重:值變才寫(顯示結果不變,只省每幀 DOM 寫入/layout)
   const fnEl = $("frameNum"); if (fnEl.textContent !== fn) fnEl.textContent = fn;
   const tc = fmtTC(dispFrame(absF)) + " / " + fmtTC(dispTotal() - 1);
   const tcEl = $("timecode"); if (tcEl.textContent !== tc) tcEl.textContent = tc;
-  if (!scrubbing){ const sv = String(absF); if (slider.value !== sv) slider.value = sv; }  // slider 值變才寫
+  if (!scrubbing){                                               // 播放中 slider 低頻寫(~7Hz):range input 每幀寫值會逼 layout,iOS 起播最有感
+    const sv = String(absF);
+    if (slider.value !== sv && (video.paused || seeking || performance.now() - lastSliderWrite > 150)){
+      slider.value = sv; lastSliderWrite = performance.now();
+    }
+  }
   if (trimMode) updateFilmstrip();
   if (!drawing && absF !== lastNoteFrame){ lastNoteFrame = absF; renderNotes(); }  // 幀變才重繪筆跡(便宜)
 }
@@ -1278,7 +1285,13 @@ function showStageMsg(m){ const el = $("stageMsg"); el.textContent = m; el.class
 function hideStageMsg(){ $("stageMsg").classList.add("hidden"); }
 
 /* ======================= PLAYBACK / LOOP / SPEED / MIRROR ======================= */
-function togglePlay(){ if (video.paused) video.play().catch(()=>{}); else video.pause(); }
+function togglePlay(){
+  if (priming){                                                  // 預熱中按播放=直接轉正:取消凍結、開聲繼續播
+    priming = false; video.muted = false; playing = true; setPlayUI(true); hudOverride = null;
+    return;
+  }
+  if (video.paused) video.play().catch(()=>{}); else video.pause();
+}
 function setPlayUI(on){ $("btnPlay").querySelector(".material-symbols-outlined").textContent = on ? "pause" : "play_arrow"; }
 function loopCheck(){                                            // 裁切邊界(播放中每幀 rVFC / 或 timeupdate 檢查)
   if (video.paused) return;
@@ -1569,6 +1582,7 @@ video.addEventListener("loadedmetadata", () => {
   slider.min = trimIn; slider.max = trimOut;
   video.playbackRate = SPEEDS[speedIdx];
   frameTarget = trimIn; seekToFrame(trimIn);                    // 停在裁切後第 0 幀
+  primeDecoder();                                               // iOS 首播掉幀:開片先靜音短播預熱解碼管線
   layoutNoteCanvas(); syncTrimUI(); updateNoteMarks(); updateHUD();
   requestWakeLock(); startRvfc();
 });
@@ -1576,14 +1590,26 @@ video.addEventListener("seeked", () => {
   if (seekTarget != null) doSeek();
   else { seeking = false; hudOverride = null; updateHUD(); }
 });
-video.addEventListener("timeupdate", () => { if (!video.paused){ loopCheck(); updateHUD(); } });
-video.addEventListener("play", () => { playing = true; setPlayUI(true); hudOverride = null; });
-video.addEventListener("pause", () => { playing = false; setPlayUI(false); frameTarget = currentFrame(); updateHUD(); });
+video.addEventListener("timeupdate", () => { if (priming) return; if (!video.paused){ loopCheck(); updateHUD(); } });
+video.addEventListener("play", () => { if (priming) return; playing = true; setPlayUI(true); hudOverride = null; });
+video.addEventListener("pause", () => { if (priming) return; playing = false; setPlayUI(false); frameTarget = currentFrame(); updateHUD(); });
 video.addEventListener("ended", () => {                          // 自然結尾(loopCheck 沒攔到時的後備)
   if (loopEnabled){ video.currentTime = (trimIn + 0.5) / fps; video.play().catch(()=>{}); }
   else { setPlayUI(false); seekToFrame(trimOut); }
 });
 video.addEventListener("error", () => { if (video.currentSrc) showStageMsg(t("playerErrFormat")); });
+
+function primeDecoder(){                                         // 靜音短播即停:讓 iOS 把解碼管線熱起來,首次真播不掉幀
+  if (priming) return;
+  priming = true; hudOverride = trimIn;                          // HUD 凍在起點,預熱過程不可見
+  const wasMuted = video.muted; video.muted = true;
+  const endPrime = () => {
+    if (!priming) return;                                        // togglePlay 已接手(使用者在預熱中按了播放)
+    priming = false; video.pause(); video.muted = wasMuted;
+    seekToFrame(trimIn);
+  };
+  video.play().then(() => setTimeout(endPrime, 140)).catch(() => { priming = false; video.muted = wasMuted; });
+}
 
 function startRvfc(){
   if (!rvfcSupported) return;
