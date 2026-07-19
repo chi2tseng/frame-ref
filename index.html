@@ -1430,9 +1430,14 @@ function startPlayback(){
   // iOS 音訊時鐘追趕跳幀:音訊管線冷啟動慢半拍,就緒瞬間影片被硬拉去對音訊主時鐘、
   // 中間幀整段丟棄。起播先靜音(影片自己當主時鐘),300ms 管線熱了才接回聲音。
   video.muted = true;
+  // 使用者實證幀都存在但起播仍等距丟真幀 = 解碼隊列邊填邊播跟不上(原生有 preroll API,網頁沒有)。
+  // 半速暖跑:前 350ms 用 0.5×(解碼需求減半、每幀都來得及呈現),隊列鋪滿後拉回全速。
+  video.playbackRate = 0.5;
   video.play().catch(()=>{});
   clearTimeout(unmuteTimer);
   unmuteTimer = setTimeout(() => { if (!video.paused && !priming) video.muted = false; }, 300);
+  clearTimeout(startPlayback._rt);
+  startPlayback._rt = setTimeout(() => { if (!video.paused) video.playbackRate = 1; }, 350);
 }
 /* ===== DIAG(機上診斷:fps chip 快點 5 下切換;判別「真掉幀」vs「計數器跳」用)===== */
 let diagOn = false, diagTaps = [], diagIv = null, diagPrev = null, diagSkips = 0, diagRvfc = [];
@@ -1842,6 +1847,7 @@ video.addEventListener("timeupdate", () => { if (priming) return; if (!video.pau
 video.addEventListener("play", () => { if (priming) return; playing = true; setPlayUI(true); hudOverride = null; });
 video.addEventListener("pause", () => { if (priming) return;
   clearTimeout(unmuteTimer); video.muted = false;               // 300ms 窗內暫停也把音訊旗標歸位
+  clearTimeout(startPlayback._rt); video.playbackRate = 1;      // 半速暖跑窗內暫停也歸位
   playing = false; setPlayUI(false); frameTarget = currentFrame(); updateHUD(); });
 video.addEventListener("ended", () => {                          // 自然結尾(loopCheck 沒攔到時的後備)
   if (loopEnabled){ video.currentTime = (trimIn + 0.5) / fps; startPlayback(); }   // 循環重啟同樣壓掉音訊追趕
