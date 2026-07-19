@@ -17,6 +17,8 @@
   --primary:#17171c; --coral:#ff7759; --coral-soft:#ffad9b; --blue:#1863dc; --focus:#4c6ee6;
   --mono:ui-monospace,"SF Mono",Consolas,monospace;
   --sans:"Space Grotesk",Inter,-apple-system,"PingFang TC",sans-serif;
+  --ease:cubic-bezier(.32,.72,0,1);          /* Apple 標準緩動 */
+  --ease-spring:cubic-bezier(.34,1.3,.64,1); /* 回彈 */
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;}
@@ -29,11 +31,15 @@ body{
 }
 .material-symbols-outlined{font-size:24px;line-height:1;user-select:none;}
 .hidden{display:none!important;}
-button{font-family:inherit;color:var(--ink);background:none;border:none;cursor:pointer;touch-action:manipulation;}
+button{font-family:inherit;color:var(--ink);background:none;border:none;cursor:pointer;touch-action:manipulation;
+  transition:transform .22s var(--ease-spring);}                 /* 放開回彈 */
+button:active:not(:disabled){transform:scale(.96);transition-duration:.12s;}  /* 按下 */
 :focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
 
 /* screens */
 .screen{position:fixed;inset:0;}
+.screen-in{animation:screenIn .22s var(--ease);}   /* 片庫↔播放器↔相機 進場 */
+@keyframes screenIn{from{opacity:0;transform:scale(.985);}to{opacity:1;transform:scale(1);}}
 #app{height:100vh;height:100dvh;}
 
 /* ===== S1 library ===== */
@@ -93,10 +99,22 @@ button{font-family:inherit;color:var(--ink);background:none;border:none;cursor:p
   padding:20px 28px 24px;z-index:2;}
 .camicon{width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.4);color:#fff;
   display:flex;align-items:center;justify-content:center;}
-.lens-row{position:absolute;bottom:104px;left:0;right:0;display:flex;justify-content:center;gap:8px;z-index:2;}
-.lens-chip{min-width:44px;min-height:44px;padding:0 14px;border-radius:32px;border:1px solid rgba(255,255,255,.55);
-  background:rgba(0,0,0,.4);color:#fff;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;}
-.lens-chip.active{background:#fff;color:var(--ink);border-color:#fff;}
+.lens-row{position:absolute;bottom:114px;left:0;right:0;display:flex;justify-content:center;gap:14px;z-index:2;}
+/* 鏡頭泡泡:仿 iPhone .5/1/2,34px 視覺 + 透明外擴到 44px 熱區 */
+.lens-chip{position:relative;width:34px;height:34px;min-width:0;padding:0;border-radius:50%;
+  border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.35);color:#fff;
+  font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums;
+  display:flex;align-items:center;justify-content:center;
+  transition:transform .22s var(--ease-spring),background-color .22s var(--ease),color .22s var(--ease);}
+.lens-chip::before{content:"";position:absolute;inset:-5px;}
+.lens-chip.active{background:#fff;color:var(--ink);border-color:#fff;transform:scale(1.18);}
+/* 相機 fps chip(右上,仿 iOS)*/
+.cam-chip{padding:6px 12px;border-radius:20px;background:rgba(0,0,0,.4);color:#fff;
+  font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums;}
+.cam-chip:disabled{opacity:.4;}
+/* 底部漸淡黑 scrim(下 ~1/3,非整塊黑)*/
+.cam-scrim{position:absolute;left:0;right:0;bottom:0;height:32%;z-index:1;pointer-events:none;
+  background:linear-gradient(to top,rgba(0,0,0,.55),rgba(0,0,0,0));}
 .camicon .material-symbols-outlined{color:#fff;}
 .cd-label{font-size:15px;font-weight:500;color:#fff;}
 #btnCountdown.active{background:var(--coral);}
@@ -104,7 +122,6 @@ button{font-family:inherit;color:var(--ink);background:none;border:none;cursor:p
   background:rgba(0,0,0,.45);padding:5px 12px;border-radius:20px;display:flex;align-items:center;gap:6px;}
 .rec-time::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--coral);animation:blink 1s steps(1) infinite;}
 @keyframes blink{50%{opacity:.15;}}
-.spacer-btn{width:44px;}
 /* REC = coral solid circle; recording -> square + pulse */
 .rec-btn{width:74px;height:74px;border-radius:50%;background:transparent;
   border:4px solid var(--coral);display:flex;align-items:center;justify-content:center;}
@@ -148,15 +165,18 @@ button{font-family:inherit;color:var(--ink);background:none;border:none;cursor:p
   margin:12px;border-radius:22px;touch-action:none;-webkit-touch-callout:none;min-height:0;}
 .mirror-wrap,.zoom-wrap{position:absolute;inset:0;transform-origin:center center;will-change:transform;}
 #video{width:100%;height:100%;object-fit:contain;background:var(--primary);display:block;}
-.hud{position:absolute;top:12px;left:12px;z-index:2;background:rgba(0,0,0,.42);
-  border-radius:10px;padding:6px 10px;pointer-events:none;}
-.frame-num{font-family:var(--mono);font-size:26px;font-weight:500;line-height:1.1;letter-spacing:1px;color:#fff;}
+.hud{position:absolute;top:10px;left:10px;z-index:2;background:rgba(0,0,0,.42);
+  border-radius:8px;padding:5px 8px;pointer-events:none;}
+.frame-num{font-family:var(--mono);font-size:20px;font-weight:500;line-height:1.1;letter-spacing:.8px;color:#fff;}
 .timecode{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.7);margin-top:2px;font-variant-numeric:tabular-nums;}
 .stage-msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
   background:var(--canvas);border:1px solid var(--hair);border-radius:16px;padding:14px 18px;font-size:14px;color:var(--ink);z-index:3;text-align:center;}
 
-/* scrub */
-.scrub-wrap{flex:0 0 auto;padding:4px 16px 2px;position:relative;}
+/* scrub — slider 與 filmstrip 同格,trim 時 max-height/opacity 交叉淡入(不 display:none 硬切) */
+.scrub-wrap{flex:0 0 auto;padding:2px 0 2px;position:relative;}
+.slider-layer{padding:2px 16px 0;max-height:56px;opacity:1;overflow:hidden;
+  transition:max-height .26s var(--ease),opacity .2s var(--ease);}
+.scrub-wrap.trimming .slider-layer{max-height:0;opacity:0;pointer-events:none;}
 .slider{-webkit-appearance:none;appearance:none;width:100%;height:44px;background:transparent;touch-action:manipulation;}
 .slider::-webkit-slider-runnable-track{height:4px;background:var(--hair);border-radius:2px;}
 .slider::-moz-range-track{height:4px;background:var(--hair);border-radius:2px;}
@@ -171,15 +191,23 @@ button{font-family:inherit;color:var(--ink);background:none;border:none;cursor:p
 .tbtn.play{flex:1.4 1 0;background:var(--primary);border-color:var(--primary);}
 .tbtn.play .material-symbols-outlined{font-size:30px;color:#fff;}
 
-/* secondary */
-.secondary{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:6px 16px 4px;}
-.secondary .spacer{flex:1 1 auto;}
+/* 模式列(deck):三層絕對疊放同格,切換時舊層 fade+下移出、新層 fade+上移進(240ms) */
+.mode-deck{position:relative;flex:0 0 auto;height:52px;margin:4px 0 2px;}
+.mode-layer{position:absolute;inset:0;display:flex;align-items:center;gap:8px;padding:0 20px;
+  opacity:0;transform:translateY(8px);pointer-events:none;
+  transition:opacity .24s var(--ease),transform .24s var(--ease);}
+.mode-layer.active{opacity:1;transform:translateY(0);pointer-events:auto;}
+#modeDefault{justify-content:space-evenly;}
+#modeDraw{justify-content:space-evenly;}
+#modeTrim{justify-content:space-between;padding:0 16px;}
 #btnSpeed{min-width:44px;justify-content:center;}
 #btnTrim.active{color:var(--coral);}
 
 /* ===== FILMSTRIP (iPhone 式 trimmer;trim 模式取代 slider 那列) ===== */
-.filmstrip{flex:0 0 auto;padding:6px 16px 2px;}
-.fs-track{position:relative;height:56px;touch-action:none;-webkit-touch-callout:none;}
+.filmstrip{padding:0 16px;max-height:0;opacity:0;overflow:hidden;pointer-events:none;
+  transition:max-height .26s var(--ease),opacity .22s var(--ease);}   /* 進出:高度 0→56 + opacity */
+.scrub-wrap.trimming .filmstrip{max-height:80px;opacity:1;pointer-events:auto;}
+.fs-track{position:relative;height:56px;margin:6px 0 4px;touch-action:none;-webkit-touch-callout:none;}
 .fs-thumbs{position:absolute;inset:0;display:flex;border-radius:8px;overflow:hidden;background:var(--stone);}
 .fs-thumb{flex:1 1 0;min-width:0;height:100%;object-fit:cover;background:var(--stone);}
 .fs-mask{position:absolute;top:0;height:100%;background:rgba(255,255,255,.7);pointer-events:none;}  /* 白殼系統用亮遮罩 */
@@ -192,25 +220,25 @@ button{font-family:inherit;color:var(--ink);background:none;border:none;cursor:p
   pointer-events:auto;touch-action:none;}  /* 把手自己收事件:中心常落在 track 邊界外,靠 track 幾何 hit-test 會漏接 */
 .fs-handle::before{content:"";position:absolute;inset:-8px -14px;}  /* 透明外擴熱區 48×72 ≥44px */
 .fs-handle .material-symbols-outlined{font-size:18px;color:#fff;}
-.trim-ctl{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 16px 6px;}
 .trim-reset{min-height:44px;padding:0 10px;color:#616161;font-size:14px;font-weight:500;background:none;}
 .trim-done{min-height:44px;padding:0 24px;border-radius:32px;background:var(--primary);color:#fff;font-size:14px;font-weight:500;}
 
 /* ===== NOTES (逐幀畫筆標註) ===== */
-.note-canvas{position:absolute;left:0;top:0;pointer-events:none;}  /* 位置/尺寸由 JS 綁到影片內容框;在 zoomWrap 內故隨 zoom/pan/mirror 變換 */
+.note-canvas{position:absolute;left:0;top:0;pointer-events:none;}  /* 尺寸由 JS 綁到整個舞台(zoomWrap);座標仍以影片內容框 normalize,故筆可畫進 letterbox */
 .note-marks{position:relative;height:6px;margin:2px 10px 0;}
 .note-mark{position:absolute;top:0;width:2px;height:6px;background:var(--coral);transform:translateX(-1px);}
 #btnDraw.active{color:var(--coral);}
-.note-bar{flex:0 0 auto;display:flex;align-items:center;gap:4px;padding:2px 12px 6px;}
 .note-color{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:none;}
 .note-color::after{content:"";width:22px;height:22px;border-radius:50%;background:var(--nc);}
 .note-color.active::after{outline:2px solid var(--ink);outline-offset:3px;}   /* outline 非 box-shadow,守 Cohere 無陰影 */
-.note-w{min-width:44px;height:44px;border-radius:22px;border:1px solid var(--ink);background:transparent;
-  color:var(--ink);font-size:14px;font-weight:500;font-variant-numeric:tabular-nums;}
-.note-sep{flex:1 1 auto;}
 #btnGhost.active{color:var(--coral);}
-.note-bar .sbtn:disabled{color:var(--hair);}
-.note-bar .sbtn.confirm{color:var(--coral);}
+.sbtn:disabled{color:var(--hair);}
+.sbtn.confirm{color:var(--coral);}
+
+/* 動效降級:尊重系統「減少動態效果」 */
+@media (prefers-reduced-motion: reduce){
+  *{transition-duration:.01ms!important;animation:none!important;}
+}
 </style>
 </head>
 <body>
@@ -244,16 +272,17 @@ button{font-family:inherit;color:var(--ink);background:none;border:none;cursor:p
       <video id="camVideo" class="cam-video" muted playsinline webkit-playsinline autoplay></video>
       <div id="camErr" class="cam-err hidden"></div>
       <div id="bigCount" class="big-count hidden"></div>
+      <div class="cam-scrim"></div>
       <div class="cam-top">
         <button id="btnCamClose" class="camicon"><span class="material-symbols-outlined">close</span></button>
         <div id="recTime" class="rec-time hidden">0:00</div>
-        <button id="btnCountdown" class="camicon"><span class="cd-label">3s</span></button>
+        <button id="btnCamFps" class="cam-chip">60 fps</button>
       </div>
       <div id="lensRow" class="lens-row hidden"></div>
       <div class="cam-bottom">
         <button id="btnFlip" class="camicon"><span class="material-symbols-outlined">flip_camera_ios</span></button>
         <button id="btnRec" class="rec-btn"><span class="rec-dot"></span></button>
-        <span class="spacer-btn"></span>
+        <button id="btnCountdown" class="camicon"><span class="cd-label">3s</span></button>
       </div>
     </div>
   </div>
@@ -266,6 +295,7 @@ button{font-family:inherit;color:var(--ink);background:none;border:none;cursor:p
         <span id="idbWarnTop" class="sbtn warn-top hidden" title="本機儲存不可用,離開後不保留"><span class="material-symbols-outlined">warning</span></span>
         <button id="btnFps" class="chip">30<span class="fps-unit">fps</span></button>
         <button id="btnMirror" class="sbtn"><span class="material-symbols-outlined">flip</span></button>
+        <button id="btnSave" class="sbtn"><span class="material-symbols-outlined">download</span></button>
         <button id="btnLibrary" class="sbtn"><span class="material-symbols-outlined">video_library</span></button>
       </div>
     </div>
@@ -285,10 +315,12 @@ button{font-family:inherit;color:var(--ink);background:none;border:none;cursor:p
       <div id="stageMsg" class="stage-msg hidden"></div>
     </div>
 
-    <div class="scrub-wrap">
-      <input id="slider" class="slider" type="range" min="0" max="0" step="1" value="0">
-      <div id="noteMarks" class="note-marks"></div>
-      <div id="filmstrip" class="filmstrip hidden">
+    <div id="scrubWrap" class="scrub-wrap">
+      <div class="slider-layer">
+        <input id="slider" class="slider" type="range" min="0" max="0" step="1" value="0">
+        <div id="noteMarks" class="note-marks"></div>
+      </div>
+      <div id="filmstrip" class="filmstrip">
         <div id="fsTrack" class="fs-track">
           <div id="fsThumbs" class="fs-thumbs"></div>
           <div id="fsMaskL" class="fs-mask"></div>
@@ -311,34 +343,27 @@ button{font-family:inherit;color:var(--ink);background:none;border:none;cursor:p
       <span class="t-gap"></span>
     </div>
 
-    <div class="secondary">
-      <button id="btnLoop" class="sbtn"><span class="material-symbols-outlined">repeat</span></button>
-      <button id="btnTrim" class="sbtn"><span class="material-symbols-outlined">content_cut</span></button>
-      <button id="btnDraw" class="sbtn"><span class="material-symbols-outlined">stylus_note</span></button>
-      <button id="btnSpeed" class="chip">1×</button>
-      <span class="spacer"></span>
-      <button id="btnCam" class="sbtn"><span class="material-symbols-outlined">videocam</span></button>
-      <button id="btnLoad2" class="sbtn"><span class="material-symbols-outlined">upload_file</span></button>
-      <button id="btnSave" class="sbtn"><span class="material-symbols-outlined">download</span></button>
-    </div>
-
-    <div id="noteBar" class="note-bar hidden">
-      <button class="note-color active" data-c="#ff7759" style="--nc:#ff7759"></button>
-      <button class="note-color" data-c="#1863dc" style="--nc:#1863dc"></button>
-      <button class="note-color" data-c="#1f9d55" style="--nc:#1f9d55"></button>
-      <button class="note-color" data-c="#212121" style="--nc:#212121"></button>
-      <button id="btnNoteW" class="note-w">3</button>
-      <span class="note-sep"></span>
-      <button id="btnNotePrev" class="sbtn"><span class="material-symbols-outlined">skip_previous</span></button>
-      <button id="btnNoteNext" class="sbtn"><span class="material-symbols-outlined">skip_next</span></button>
-      <button id="btnGhost" class="sbtn"><span class="material-symbols-outlined">animation</span></button>
-      <button id="btnNoteUndo" class="sbtn"><span class="material-symbols-outlined">undo</span></button>
-      <button id="btnNoteClear" class="sbtn"><span class="material-symbols-outlined">delete</span></button>
-    </div>
-
-    <div id="trimCtl" class="trim-ctl hidden">
-      <button id="btnTrimReset" class="trim-reset">重置</button>
-      <button id="btnTrimDone" class="trim-done">完成</button>
+    <!-- 模式列:三層同格,依 default / draw / trim 原地切換(見 renderModeRow) -->
+    <div class="mode-deck">
+      <div id="modeDefault" class="mode-layer active">
+        <button id="btnLoop" class="sbtn"><span class="material-symbols-outlined">repeat</span></button>
+        <button id="btnSpeed" class="chip">1×</button>
+        <button id="btnTrim" class="sbtn"><span class="material-symbols-outlined">content_cut</span></button>
+        <button id="btnDraw" class="sbtn"><span class="material-symbols-outlined">stylus_note</span></button>
+      </div>
+      <div id="modeDraw" class="mode-layer">
+        <button class="note-color active" data-c="#ff7759" style="--nc:#ff7759"></button>
+        <button class="note-color" data-c="#1863dc" style="--nc:#1863dc"></button>
+        <button class="note-color" data-c="#212121" style="--nc:#212121"></button>
+        <button id="btnGhost" class="sbtn"><span class="material-symbols-outlined">animation</span></button>
+        <button id="btnNoteUndo" class="sbtn"><span class="material-symbols-outlined">undo</span></button>
+        <button id="btnNoteClear" class="sbtn"><span class="material-symbols-outlined">delete</span></button>
+        <button id="btnDrawDone" class="trim-done">完成</button>
+      </div>
+      <div id="modeTrim" class="mode-layer">
+        <button id="btnTrimReset" class="trim-reset">重置</button>
+        <button id="btnTrimDone" class="trim-done">完成</button>
+      </div>
     </div>
   </div>
 
@@ -372,7 +397,7 @@ let seekTarget = null, seeking = false;
 let loopEnabled = false;
 
 // 逐幀畫筆標註(SyncSketch 式):strokes 存 rec.notes["<絕對幀>"]=[{c,w,pts:[[x,y]...]}]
-let annotMode = false, penColor = "#ff7759", penWidth = 3, ghostOn = false;
+let annotMode = false, penColor = "#ff7759", penWidth = 4, ghostOn = false;  // 固定粗細 4(1080p 基準),壓感照舊
 let noteCanvas = null, noteCtx = null, noteDpr = 1, lastNoteFrame = -1;
 let drawing = false, curStroke = null, curPressures = null, noteDelTimer = null;
 
@@ -388,6 +413,8 @@ let saveTimer = null, pendingSaveRec = null, thumbUrls = [], pendingDel = null;
 // camera
 let stream = null, recorder = null, chunks = [], facing = "environment", lensId = null;
 let recTimerIv = null, recStart = 0, countdown3 = false, cdIv = null;
+let camFps = 60;                          // 相機拍攝 fps 偏好(session 變數,重進相機沿用)
+const CAM_FPS_CYCLE = [24, 30, 60];
 
 // fps auto-detect(rVFC fallback 路徑)
 let fpsSamples = [];
@@ -544,9 +571,12 @@ async function parseMp4Fps(blob){
 /* ======================= SCREENS ======================= */
 function showScreen(s){
   scr = s;
-  $("screenS1").classList.toggle("hidden", s !== "S1");
-  $("screenS2").classList.toggle("hidden", s !== "S2");
-  $("screenS3").classList.toggle("hidden", s !== "S3");
+  const map = { S1: "screenS1", S2: "screenS2", S3: "screenS3" };
+  for (const k in map){
+    const el = $(map[k]), on = k === s;
+    el.classList.toggle("hidden", !on);
+    if (on){ el.classList.remove("screen-in"); void el.offsetWidth; el.classList.add("screen-in"); }  // reflow 重啟進場動畫
+  }
 }
 
 /* ======================= LIBRARY (S1) ======================= */
@@ -731,14 +761,15 @@ async function startStream(){
   stopStream();
   try{
     // 選了特定鏡頭(iPhone 0.5×/1×/長焦)用 deviceId,否則用 facingMode
-    const vc = lensId ? { deviceId: { exact: lensId }, width: { ideal: 1920 }, frameRate: { ideal: 60 } }
-                      : { facingMode: facing, width: { ideal: 1920 }, frameRate: { ideal: 60 } };
+    const vc = lensId ? { deviceId: { exact: lensId }, width: { ideal: 1920 }, frameRate: { ideal: camFps } }
+                      : { facingMode: facing, width: { ideal: 1920 }, frameRate: { ideal: camFps } };
     stream = await navigator.mediaDevices.getUserMedia({ video: vc, audio: true });
     $("camVideo").srcObject = stream;
     $("camVideo").play().catch(()=>{});
     $("camVideo").style.transform = facing === "user" ? "scaleX(-1)" : "none";  // 前鏡預覽鏡像,錄檔不鏡像
     hideCamErr();
     updateLensRow();
+    updateCamFpsChip();                                                          // 顯示新串流的實際 fps
   }catch(err){
     if (err.name === "OverconstrainedError" && lensId){ lensId = null; return startStream(); }  // 記住的鏡頭不存在了 → 退回 facingMode
     if (err.name === "NotAllowedError")
@@ -747,12 +778,13 @@ async function startStream(){
   }
 }
 function stopStream(){ if (stream){ stream.getTracks().forEach(t => t.stop()); stream = null; } }
-function lensShortLabel(label, idx){
+function lensShortLabel(label, idx){                            // 泡泡標:仿 iPhone .5/1/2/A
   const l = (label || "").toLowerCase();
-  if (/ultra|超廣/.test(l)) return "0.5×";
-  if (/tele|望遠|長焦/.test(l)) return "長焦";
-  if (/dual|triple|雙鏡|三鏡/.test(l)) return "自動";
-  return label ? "1×" : (idx + 1) + "號";
+  if (/ultra|超廣/.test(l)) return ".5";
+  if (/tele|望遠|長焦/.test(l)) return "2";
+  if (/dual|triple|雙鏡|三鏡/.test(l)) return "A";
+  if (/wide|廣角/.test(l)) return "1";
+  return label ? "1" : String(idx + 1);
 }
 async function updateLensRow(){
   const row = $("lensRow");
@@ -764,13 +796,10 @@ async function updateLensRow(){
     if (devs.length < 2){ row.classList.add("hidden"); return; }
     const curId = stream && stream.getVideoTracks()[0] && stream.getVideoTracks()[0].getSettings().deviceId;
     row.innerHTML = "";
-    const seen = {};
     devs.forEach((d, i) => {
       const b = document.createElement("button");
-      let lbl = lensShortLabel(d.label, i);
-      if (seen[lbl] != null) lbl = lbl + " " + (++seen[lbl] + 1); else seen[lbl] = 0;
       b.className = "lens-chip" + (d.deviceId === curId ? " active" : "");
-      b.textContent = lbl;
+      b.textContent = lensShortLabel(d.label, i);
       b.addEventListener("click", () => switchLens(d.deviceId));
       row.appendChild(b);
     });
@@ -781,6 +810,23 @@ function switchLens(id){
   if (recorder && recorder.state === "recording") return;             // 換流會斷錄影,錄影中禁切
   if (cdIv) return;                                                   // 倒數中也不切
   lensId = id; startStream();
+}
+function updateCamFpsChip(){                                          // 顯示裝置回報的實際 fps(給不到就顯示偏好值,不騙人)
+  const t = stream && stream.getVideoTracks()[0];
+  let shown = camFps;
+  if (t && t.getSettings){ const s = t.getSettings(); if (s && s.frameRate) shown = Math.round(s.frameRate); }
+  const el = $("btnCamFps"); if (el) el.textContent = shown + " fps";
+}
+async function cycleCamFps(){                                         // tap 循環 24→30→60
+  if (recorder && recorder.state === "recording") return;            // 錄影中禁改
+  const i = CAM_FPS_CYCLE.indexOf(camFps);
+  camFps = CAM_FPS_CYCLE[(i + 1) % CAM_FPS_CYCLE.length];
+  const t = stream && stream.getVideoTracks()[0];
+  if (t){
+    try{ await t.applyConstraints({ frameRate: { ideal: camFps, max: camFps } }); }  // 先試不重啟串流
+    catch(_){ await startStream(); }                                                 // reject → 重啟串流(帶新 frameRate)
+  }
+  updateCamFpsChip();
 }
 function showCamErr(msg){ const el = $("camErr"); el.textContent = msg; el.classList.remove("hidden"); }
 function hideCamErr(){ $("camErr").classList.add("hidden"); }
@@ -821,6 +867,7 @@ function updateRecTimer(){ $("recTime").textContent = fmtDur((Date.now() - recSt
 function setRecUI(on){
   $("btnRec").classList.toggle("recording", on);
   $("recTime").classList.toggle("hidden", !on);
+  $("btnCamFps").disabled = on;                 // 錄影中 fps chip 停用
   if (on) $("recTime").textContent = "0:00";
 }
 function onNewRecording(blob){ stopStream(); addClip(blob, null); }   // 錄完自動存片庫 + 直接開播放器
@@ -883,6 +930,10 @@ function setFps(f){
 function toggleTrim(){ trimMode ? exitTrim() : enterTrim(); }
 function enterTrim(){
   if (!curClip()) return;
+  if (annotMode){                                              // 互斥:進裁切先退畫筆(單一模式列)
+    annotMode = false; $("btnDraw").classList.remove("active");
+    if (drawing){ drawing = false; curStroke = null; } renderNotes();
+  }
   trimMode = true;
   if (!video.paused) video.pause();
   syncTrimUI();
@@ -893,13 +944,17 @@ function enterTrim(){
   if (fsThumbCache && fsThumbCache.length === count) fsThumbCache.forEach((u, i) => fillFilmstripThumb(i, u));
   else if (rec) buildFilmstrip(rec, count);                     // 異步逐張填入(灰底佔位)
 }
-function exitTrim(){ trimMode = false; fsDragType = null; syncTrimUI(); }   // 離開:filmstrip 隱藏,縮圖快取留記憶體
-function syncTrimUI(){                                           // trim 模式 ⇄ slider 的顯示切換 + 位置同步
+function exitTrim(){ trimMode = false; fsDragType = null; syncTrimUI(); }   // 離開:filmstrip 收起,縮圖快取留記憶體
+function renderModeRow(){                                        // 模式列原地切換 default/draw/trim;toggle .active,靠 CSS transition 淡切(非 display:none)
+  const mode = trimMode ? "trim" : (annotMode ? "draw" : "default");
+  $("modeDefault").classList.toggle("active", mode === "default");
+  $("modeDraw").classList.toggle("active", mode === "draw");
+  $("modeTrim").classList.toggle("active", mode === "trim");
+}
+function syncTrimUI(){                                           // scrub 區(slider ⇄ filmstrip)交叉淡入 + 模式列同步
   $("btnTrim").classList.toggle("active", trimMode);
-  $("filmstrip").classList.toggle("hidden", !trimMode);
-  $("trimCtl").classList.toggle("hidden", !trimMode);
-  $("slider").classList.toggle("hidden", trimMode);
-  $("noteMarks").classList.toggle("hidden", trimMode);
+  $("scrubWrap").classList.toggle("trimming", trimMode);
+  renderModeRow();
   if (trimMode) updateFilmstrip();
 }
 function filmstripCount(){
@@ -1160,24 +1215,29 @@ function onWheel(e){
 
 /* ======================= NOTES (逐幀畫筆標註;canvas 綁影片內容框,在 zoomWrap 內隨 zoom/pan/mirror) ======================= */
 function initNoteCanvas(){ noteCanvas = $("noteCanvas"); noteCtx = noteCanvas.getContext("2d"); }
-function layoutNoteCanvas(){                                    // canvas = video contain 後的實際內容框(letterbox 對齊)
+function noteContentBox(ew, eh){                                // 影片內容框(contain)在舞台內的置中矩形 → {ox,oy,cw,ch}
+  const vw = video.videoWidth || 16, vh = video.videoHeight || 9;
+  const s = Math.min(ew / vw, eh / vh);
+  const cw = Math.max(1, vw * s), ch = Math.max(1, vh * s);
+  return { ox: (ew - cw) / 2, oy: (eh - ch) / 2, cw, ch };
+}
+function layoutNoteCanvas(){                                    // v4:canvas = 整個舞台(zoomWrap);內容框只在座標/繪製時換算,故筆可畫進 letterbox
   if (!noteCanvas) return;
   const ew = zoomWrap.clientWidth, eh = zoomWrap.clientHeight;
-  const vw = video.videoWidth || 16, vh = video.videoHeight || 9;
-  const scale = Math.min(ew / vw, eh / vh);
-  const cw = Math.max(1, vw * scale), ch = Math.max(1, vh * scale);
-  noteCanvas.style.left = (ew - cw) / 2 + "px"; noteCanvas.style.top = (eh - ch) / 2 + "px";
-  noteCanvas.style.width = cw + "px"; noteCanvas.style.height = ch + "px";
+  noteCanvas.style.left = "0px"; noteCanvas.style.top = "0px";
+  noteCanvas.style.width = ew + "px"; noteCanvas.style.height = eh + "px";
   noteDpr = window.devicePixelRatio || 1;
-  noteCanvas.width = Math.round(cw * noteDpr); noteCanvas.height = Math.round(ch * noteDpr);
+  noteCanvas.width = Math.max(1, Math.round(ew * noteDpr)); noteCanvas.height = Math.max(1, Math.round(eh * noteDpr));
   lastNoteFrame = -1; renderNotes();                           // 尺寸變 → 強制重繪
 }
-function noteXY(e){                                             // pointer → 內容框 normalized 0..1;鏡像存未鏡像基準(x=1-x)
-  const r = noteCanvas.getBoundingClientRect();
-  let x = clamp((e.clientX - r.left) / r.width, 0, 1);
-  const y = clamp((e.clientY - r.top) / r.height, 0, 1);
-  if (mirror) x = 1 - x;
-  return [x, y];
+function noteXY(e){                                             // pointer → 內容框 normalized(可 <0/>1,直接存);鏡像存未鏡像基準(x=1-x)
+  const r = noteCanvas.getBoundingClientRect();                // = 舞台變換後 AABB;比例對 zoom/pan 不變
+  let fx = (e.clientX - r.left) / r.width;
+  const fy = (e.clientY - r.top) / r.height;
+  if (mirror) fx = 1 - fx;                                     // 外層 scaleX(-1):螢幕比例 → 內容比例翻轉
+  const ew = noteCanvas.width / noteDpr, eh = noteCanvas.height / noteDpr;
+  const b = noteContentBox(ew, eh);
+  return [(fx - b.ox / ew) / (b.cw / ew), (fy - b.oy / eh) / (b.ch / eh)];   // 內容框內為 0..1,letterbox 為 <0/>1
 }
 function noteDown(e){
   if (!noteCtx) return;
@@ -1212,15 +1272,15 @@ function noteUp(){
   }
   renderNotes();
 }
-function drawStrokes(arr, cw, ch, scale, override, alpha){
+function drawStrokes(arr, ox, oy, cw, ch, scale, override, alpha){   // 座標 = 內容框左上(ox,oy)+ normalized × 內容框尺寸;normalized 可 <0/>1(畫進 letterbox)
   if (!arr || !arr.length) return;
   noteCtx.lineJoin = "round"; noteCtx.lineCap = "round"; noteCtx.globalAlpha = alpha;
   for (const st of arr){
     if (!st.pts || !st.pts.length) continue;
-    noteCtx.strokeStyle = override || st.c; noteCtx.lineWidth = Math.max(1, (st.w || 3) * scale);
+    noteCtx.strokeStyle = override || st.c; noteCtx.lineWidth = Math.max(1, (st.w || 4) * scale);   // 舊資料 w=3/7 照讀
     noteCtx.beginPath();
-    st.pts.forEach((p, i) => { const x = p[0] * cw, y = p[1] * ch; i ? noteCtx.lineTo(x, y) : noteCtx.moveTo(x, y); });
-    if (st.pts.length === 1) noteCtx.lineTo(st.pts[0][0] * cw + 0.01, st.pts[0][1] * ch);  // 單點畫成圓點
+    st.pts.forEach((p, i) => { const x = ox + p[0] * cw, y = oy + p[1] * ch; i ? noteCtx.lineTo(x, y) : noteCtx.moveTo(x, y); });
+    if (st.pts.length === 1) noteCtx.lineTo(ox + st.pts[0][0] * cw + 0.01, oy + st.pts[0][1] * ch);  // 單點畫成圓點
     noteCtx.stroke();
   }
   noteCtx.globalAlpha = 1;
@@ -1228,18 +1288,18 @@ function drawStrokes(arr, cw, ch, scale, override, alpha){
 function renderNotes(){                                         // 目前幀 strokes(+ ghost + 進行中筆跡);任何時刻含播放中
   if (!noteCtx) return;
   noteCtx.setTransform(noteDpr, 0, 0, noteDpr, 0, 0);
-  const cw = noteCanvas.width / noteDpr, ch = noteCanvas.height / noteDpr;
-  noteCtx.clearRect(0, 0, cw, ch);
-  const rec = curClip(); if (!rec){ updateNoteNav(); return; }
-  const f = curAbs(), scale = ch / 1080;                       // 線寬以 1080p 基準等比縮放
+  const ew = noteCanvas.width / noteDpr, eh = noteCanvas.height / noteDpr;   // 整個舞台
+  noteCtx.clearRect(0, 0, ew, eh);
+  const rec = curClip(); if (!rec) return;
+  const b = noteContentBox(ew, eh);                            // 內容框 → 映射基準(同 noteXY)
+  const f = curAbs(), scale = b.ch / 1080;                     // 線寬以 1080p 基準等比縮放(用內容框高)
   if (ghostOn && rec.notes){                                   // 洋蔥皮:前一標註幀藍調 / 後一 coral 調,各 25%,只各取一幀
     const pv = nearestNoteFrame(f, -1), nx = nearestNoteFrame(f, 1);
-    if (pv != null) drawStrokes(rec.notes[pv], cw, ch, scale, "#1863dc", 0.25);
-    if (nx != null) drawStrokes(rec.notes[nx], cw, ch, scale, "#ff7759", 0.25);
+    if (pv != null) drawStrokes(rec.notes[pv], b.ox, b.oy, b.cw, b.ch, scale, "#1863dc", 0.25);
+    if (nx != null) drawStrokes(rec.notes[nx], b.ox, b.oy, b.cw, b.ch, scale, "#ff7759", 0.25);
   }
-  if (rec.notes && rec.notes[f]) drawStrokes(rec.notes[f], cw, ch, scale, null, 1);
-  if (curStroke) drawStrokes([curStroke], cw, ch, scale, null, 1);
-  updateNoteNav();
+  if (rec.notes && rec.notes[f]) drawStrokes(rec.notes[f], b.ox, b.oy, b.cw, b.ch, scale, null, 1);
+  if (curStroke) drawStrokes([curStroke], b.ox, b.oy, b.cw, b.ch, scale, null, 1);
 }
 function nearestNoteFrame(f, dir){                              // 最近的「有筆跡幀」(dir<0 往前 / dir>0 往後)
   const rec = curClip(); if (!rec || !rec.notes) return null;
@@ -1289,14 +1349,11 @@ function updateNoteMarks(){                                     // slider 下方
   keys.forEach(k => { const d = document.createElement("div"); d.className = "note-mark";
     d.style.left = ((k - trimIn) / span * 100) + "%"; el.appendChild(d); });
 }
-function updateNoteNav(){
-  $("btnNotePrev").disabled = nearestNoteFrame(curAbs(), -1) == null;
-  $("btnNoteNext").disabled = nearestNoteFrame(curAbs(), 1) == null;
-}
 function toggleDraw(){                                          // 標註模式開關(單指 jog ↔ 畫筆)
   annotMode = !annotMode;
+  if (annotMode && trimMode) exitTrim();                       // 互斥:進畫筆先退裁切(單一模式列)
   $("btnDraw").classList.toggle("active", annotMode);
-  $("noteBar").classList.toggle("hidden", !annotMode);
+  renderModeRow();                                             // 模式列切到 draw / 回 default
   if (!annotMode && drawing){ drawing = false; curStroke = null; renderNotes(); }
   gMode = "none";
 }
@@ -1305,7 +1362,6 @@ function setPenColor(c, btn){
   penColor = c;
   document.querySelectorAll(".note-color").forEach(b => b.classList.toggle("active", b === btn));
 }
-function togglePenWidth(){ penWidth = penWidth === 3 ? 7 : 3; $("btnNoteW").textContent = penWidth; }   // 3px ↔ 7px(1080p 基準)
 
 /* ======================= WAKE LOCK ======================= */
 async function requestWakeLock(){
@@ -1416,6 +1472,7 @@ $("btnCamClose").addEventListener("click", () => {
   if (curId != null) showScreen("S3"); else { showScreen("S1"); renderLibrary(); }
 });
 $("btnRec").addEventListener("click", onRecPress);
+$("btnCamFps").addEventListener("click", cycleCamFps);
 $("btnFlip").addEventListener("click", () => {
   if (recorder && recorder.state === "recording") return;      // 錄影中禁切鏡頭(換流會中斷錄影)
   facing = facing === "user" ? "environment" : "user";
@@ -1433,13 +1490,12 @@ $("btnBack1").addEventListener("click", () => step(-1));
 $("btnFwd1").addEventListener("click", () => step(1));
 $("btnFwd5").addEventListener("click", () => step(5));
 $("btnPlay").addEventListener("click", togglePlay);
-// S3 secondary
+// S3 模式列(default)+ 頂欄下載
 $("btnLoop").addEventListener("click", toggleLoop);
 $("btnTrim").addEventListener("click", toggleTrim);
 $("btnDraw").addEventListener("click", toggleDraw);
+$("btnDrawDone").addEventListener("click", toggleDraw);          // 畫筆層蓋住 btnDraw,層內必須有退出口
 $("btnSpeed").addEventListener("click", cycleSpeed);
-$("btnCam").addEventListener("click", enterCamera);
-$("btnLoad2").addEventListener("click", () => $("fileInput").click());
 $("btnSave").addEventListener("click", saveClip);
 // trim 完成/重置 + filmstrip 拖曳(把手 in/out + 條身 scrub)
 $("btnTrimReset").addEventListener("click", resetTrim);
@@ -1455,11 +1511,8 @@ $("fsTrack").addEventListener("pointercancel", fsUp);
   h.addEventListener("pointerup", fsUp);
   h.addEventListener("pointercancel", fsUp);
 });
-// 標註工具列
+// 標註工具列(模式列 draw 層;跳標註幀改走鍵盤 ↑↓)
 document.querySelectorAll(".note-color").forEach(b => b.addEventListener("click", () => setPenColor(b.dataset.c, b)));
-$("btnNoteW").addEventListener("click", togglePenWidth);
-$("btnNotePrev").addEventListener("click", () => gotoNoteFrame(-1));
-$("btnNoteNext").addEventListener("click", () => gotoNoteFrame(1));
 $("btnGhost").addEventListener("click", toggleGhost);
 $("btnNoteUndo").addEventListener("click", undoNote);
 $("btnNoteClear").addEventListener("click", clearNoteFrame);
