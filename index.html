@@ -184,6 +184,9 @@ button:active:not(:disabled){transform:scale(.96);transition-duration:.12s;}  /*
   border-radius:8px;padding:5px 8px;pointer-events:none;}
 .frame-num{font-family:var(--mono);font-size:20px;font-weight:500;line-height:1.1;letter-spacing:.8px;color:#fff;}
 .timecode{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.7);margin-top:2px;font-variant-numeric:tabular-nums;}
+.diag{position:absolute;bottom:8px;left:8px;z-index:3;background:rgba(0,0,0,.55);border-radius:6px;
+  padding:5px 7px;font-family:var(--mono);font-size:10px;line-height:1.5;color:#fff;
+  pointer-events:none;white-space:pre;}
 .stage-msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
   background:var(--canvas);border:1px solid var(--hair);border-radius:16px;padding:14px 18px;font-size:14px;color:var(--ink);z-index:3;text-align:center;}
 
@@ -351,6 +354,7 @@ button:active:not(:disabled){transform:scale(.96);transition-duration:.12s;}  /*
         <div id="timecode" class="timecode">0:00.00 / 0:00.00</div>
       </div>
       <div id="stageMsg" class="stage-msg hidden"></div>
+      <div id="diagPanel" class="diag hidden"></div>
     </div>
 
     <div id="scrubWrap" class="scrub-wrap">
@@ -1300,14 +1304,58 @@ function hideStageMsg(){ $("stageMsg").classList.add("hidden"); }
 
 /* ======================= PLAYBACK / LOOP / SPEED / MIRROR ======================= */
 function startPlayback(){
-  // iOS 音訊時鐘追趕跳幀(起播 4 幀後直接跳到 ~14):音訊管線冷啟動慢半拍,就緒瞬間
-  // 影片被硬拉去對音訊主時鐘、中間幀整段丟棄。解法:起播先靜音(影片自己當主時鐘,
-  // 逐幀連續),300ms 管線熱了才把聲音悄悄接回來。
+  // 從整段開頭起播時,先貼齊精確 t=0(=關鍵幀)再 play:停在幀中點(0.5/fps)=非關鍵幀,
+  // iOS 起播要邊追解碼邊播,前 ~12 幀以固定間隔丟幀(4→8→12 樣式)。
+  if (trimIn === 0 && currentFrame() <= 1 && video.currentTime !== 0){
+    seekTarget = null; seeking = false;                          // 蓋掉排隊中的幀中點 seek,別打架
+    video.currentTime = 0;
+  }
+  // iOS 音訊時鐘追趕跳幀:音訊管線冷啟動慢半拍,就緒瞬間影片被硬拉去對音訊主時鐘、
+  // 中間幀整段丟棄。起播先靜音(影片自己當主時鐘),300ms 管線熱了才接回聲音。
   video.muted = true;
   video.play().catch(()=>{});
   clearTimeout(unmuteTimer);
   unmuteTimer = setTimeout(() => { if (!video.paused && !priming) video.muted = false; }, 300);
 }
+/* ===== DIAG(機上診斷:fps chip 快點 5 下切換;判別「真掉幀」vs「計數器跳」用)===== */
+let diagOn = false, diagTaps = [], diagIv = null, diagPrev = null, diagSkips = 0, diagRvfc = [];
+function diagTap(){
+  const now = performance.now();
+  diagTaps = diagTaps.filter(x => now - x < 1600); diagTaps.push(now);
+  if (diagTaps.length >= 5){ diagTaps = []; toggleDiag(); }
+}
+function toggleDiag(){
+  diagOn = !diagOn;
+  $("diagPanel").classList.toggle("hidden", !diagOn);
+  if (diagOn){ diagPrev = null; diagSkips = 0; diagRvfc = []; diagRvfcLoop(); diagIv = setInterval(diagRender, 250); }
+  else clearInterval(diagIv);
+}
+function diagRvfcLoop(){
+  if (!diagOn || !rvfcSupported) return;
+  video.requestVideoFrameCallback((now, md) => {
+    if (!diagOn) return;
+    if (diagPrev){
+      diagRvfc.push(now - diagPrev.now); if (diagRvfc.length > 40) diagRvfc.shift();
+      if (md.presentedFrames - diagPrev.pf > 1) diagSkips += md.presentedFrames - diagPrev.pf - 1;
+    }
+    diagPrev = { now, pf: md.presentedFrames };
+    diagRvfcLoop();
+  });
+}
+function diagRender(){
+  let dropped = "n/a", total = "n/a";
+  if (video.getVideoPlaybackQuality){ const q = video.getVideoPlaybackQuality(); dropped = q.droppedVideoFrames; total = q.totalVideoFrames; }
+  else if (video.webkitDecodedFrameCount != null){ dropped = video.webkitDroppedFrameCount; total = video.webkitDecodedFrameCount; }
+  const s = [...diagRvfc].sort((a, b) => a - b);
+  const med = s.length ? s[Math.floor(s.length / 2)].toFixed(1) : "-";
+  const mx = s.length ? Math.max(...s).toFixed(0) : "-";
+  $("diagPanel").textContent =
+    "drop " + dropped + "/" + total + "\n" +
+    "pfskip " + diagSkips + "\n" +
+    "rvfc " + med + "/" + mx + "ms\n" +
+    "rs " + video.readyState + "  t " + video.currentTime.toFixed(2);
+}
+
 function togglePlay(){
   if (priming){                                                  // 預熱中按播放=直接轉正:取消凍結、續播(300ms 後開聲)
     priming = false; playing = true; setPlayUI(true); hudOverride = null;
@@ -1748,6 +1796,7 @@ $("btnCountdown").addEventListener("click", () => { countdown3 = !countdown3; $(
 })();
 // S3 top
 $("btnFps").addEventListener("click", toggleFpsPop);
+$("btnFps").addEventListener("click", diagTap);                  // 快點 5 下 = 機上診斷面板
 $("btnMirror").addEventListener("click", toggleMirror);
 $("btnLibrary").addEventListener("click", backToLibrary);
 // S3 transport
