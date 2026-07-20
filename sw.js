@@ -1,6 +1,6 @@
 // FrameRef service worker — index 走 network-first(更新即時),靜態資產 cache-first,離線可開
-const CACHE = "frameref-v1";
-const ASSETS = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png", "./icon-180.png"];
+const CACHE = "frameref-v2";
+const ASSETS = ["./", "./index.html", "./manifest.json", "./mp4box.all.min.js", "./icon-192.png", "./icon-512.png", "./icon-180.png"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));

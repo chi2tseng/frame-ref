@@ -490,6 +490,7 @@ button:active:not(:disabled){transform:scale(.96);transition-duration:.12s;}  /*
   <input id="fileInput" type="file" accept="video/*" hidden>
 </div>
 
+<script src="mp4box.all.min.js"></script>
 <script>
 "use strict";
 /* ======================= STATE ======================= */
@@ -874,7 +875,97 @@ function setVideoSrc(url, type){
   }
   video.load();
 }
+/* ===== MSE 掛載(起播丟幀根治)=====
+   blob <video> 在 iOS 沒有 preroll 控制,冷啟動邊解邊播必丟幀;改成 mp4box.js 把原檔
+   重封裝為 fMP4(免轉碼、純容器改寫)整包餵進 (Managed)MediaSource + endOfStream,
+   瀏覽器看到完整緩衝才起播 = 原生級 preroll。任何一步不行(無 MMS/MSE、非 MP4、
+   超大檔、解析/codec/配額失敗、中途換片)→ 靜默退回 blob+暖跑路徑,行為同前。 */
+const MSE_MAX_BYTES = 80 * 1024 * 1024;               // SourceBuffer 配額安全上限(iOS 未公開文件,保守取 80MB)
+let mseMounted = false, mountToken = 0;
+function mseTeardown(){ mseMounted = false; if ("disableRemotePlayback" in video) video.disableRemotePlayback = false; }
+function sniffMp4(blob){                               // bytes 4-8 = "ftyp" 即 MP4/MOV 家族
+  return blob.slice(4, 8).arrayBuffer().then(ab => new TextDecoder().decode(ab) === "ftyp").catch(() => false);
+}
+function remuxToFmp4(blob){
+  return new Promise((resolve, reject) => {
+    const f = MP4Box.createFile();
+    const tracks = []; let fInfo = null;
+    f.onError = e => reject(new Error("mp4box " + e));
+    f.onReady = info => {
+      fInfo = info;
+      const v = info.tracks.filter(t => t.type === "video")[0];
+      const a = info.tracks.filter(t => t.type === "audio")[0];   // iPhone 檔常帶 metadata track(mebx),只取 V+A
+      if (!v) return reject(new Error("no video track"));
+      for (const t of [v, a].filter(Boolean)){
+        tracks.push({ id: t.id, mime: (t.type === "video" ? "video/mp4" : "audio/mp4") + '; codecs="' + t.codec + '"', segs: [] });
+        f.setSegmentOptions(t.id, null, { nbSamples: 100 });
+      }
+      for (const s of f.initializeSegmentation()) tracks.find(x => x.id === s.id).init = s.buffer;
+      f.start();
+    };
+    f.onSegment = (id, user, buffer) => { const tr = tracks.find(x => x.id === id); if (tr) tr.segs.push(buffer); };
+    blob.arrayBuffer().then(ab => {
+      ab.fileStart = 0;
+      f.appendBuffer(ab);                              // moov 在檔尾也行:整檔已在手,onReady 於此同步觸發
+      f.flush();                                       // 收尾:殘餘樣本出成最後一段
+      if (!fInfo || !tracks.length || tracks.some(t => !t.init)) return reject(new Error("mp4box parse incomplete"));
+      resolve({ duration: (fInfo.duration || fInfo.fragment_duration || 0) / (fInfo.timescale || 1), tracks });   // fragmented 輸入 duration 在 fragment_duration
+    }, reject);
+  });
+}
+async function mountMse(rec, token){
+  const MS = window.ManagedMediaSource || window.MediaSource;
+  const remux = await remuxToFmp4(rec.blob);
+  if (token !== mountToken) return false;              // 已切走
+  for (const tr of remux.tracks) if (!MS.isTypeSupported(tr.mime)) throw new Error("unsupported " + tr.mime);
+  const ms = new MS();
+  video.removeAttribute("src");
+  [...video.querySelectorAll("source")].forEach(s => s.remove());
+  if ("disableRemotePlayback" in video) video.disableRemotePlayback = true;   // MMS 硬性要求(附帶關 AirPlay)
+  const url = URL.createObjectURL(ms);
+  video.src = url;                                     // MediaSource 標準掛法是 src(<source> 快路徑規則僅適用檔案 blob)
+  await new Promise((res, rej) => {
+    ms.addEventListener("sourceopen", res, { once: true });
+    setTimeout(() => rej(new Error("sourceopen timeout")), 4000);
+  });
+  URL.revokeObjectURL(url);                            // MediaSource objectURL 掛上即可回收(標準做法)
+  if (token !== mountToken) return false;
+  const dur = remux.duration || rec.dur || 0;          // 雙保險:容器算不出就用 makeThumb 量到的 blob duration
+  if (dur && isFinite(dur)) ms.duration = dur;
+  const appendOne = (sb, b) => new Promise((res, rej) => {
+    sb.onupdateend = res; sb.onerror = () => rej(new Error("sourcebuffer error"));
+    try{ sb.appendBuffer(b); }catch(e){ rej(e); }      // QuotaExceededError 走這 → 上層退 blob
+  });
+  const sbs = remux.tracks.map(tr => ms.addSourceBuffer(tr.mime));   // 全部先建:Chrome 開始餵資料後禁止再加軌(QuotaExceededError)
+  for (let ti = 0; ti < remux.tracks.length; ti++){
+    const tr = remux.tracks[ti];
+    const bufs = [tr.init, ...tr.segs]; tr.segs = null;
+    for (const b of bufs){
+      if (token !== mountToken) return false;
+      await appendOne(sbs[ti], b);
+    }
+  }
+  if (token !== mountToken) return false;
+  if (ms.readyState === "open") ms.endOfStream();      // 宣告「就這麼多」→ duration 定稿、preroll 語意成立
+  return true;
+}
+async function mountClipVideo(rec){
+  const token = ++mountToken;
+  const MS = window.ManagedMediaSource || window.MediaSource;
+  let ok = false;
+  if (MS && window.MP4Box && rec.blob.size <= MSE_MAX_BYTES && await sniffMp4(rec.blob)){
+    try{ ok = await mountMse(rec, token); }catch(_){ ok = false; }
+  }
+  if (token !== mountToken) return;                    // 已切走,別動現場
+  mseMounted = ok;
+  if (!ok){
+    mseTeardown();
+    setVideoSrc(rec.url, rec.blob && rec.blob.type);   // 退回 blob 快路徑(<source> 子元素)
+  }
+}
 function closeClipUrl(){
+  mountToken++;                                        // 打斷任何在途掛載
+  mseTeardown();
   const c = clips.find(x => x.id === curId);
   if (c && c.url){
     setVideoSrc(null);                                           // 先解除 video 引用再 revoke,免噴 ERR_FILE_NOT_FOUND
@@ -901,7 +992,7 @@ function openClip(id){
   seeking = false; seekTarget = null; hudOverride = null;       // 不重置會讓逐格永久卡死
   hideStageMsg();
   if (noteCtx) noteCtx.clearRect(0, 0, noteCanvas.width, noteCanvas.height);
-  setVideoSrc(rec.url, rec.blob && rec.blob.type);
+  mountClipVideo(rec);                                          // MSE 優先(async),不行退 blob 快路徑
   showScreen("S3");
   updateFpsChip();
   if (!fpsManual) tryContainerFps(rec);                         // 優先序:fpsManual > 容器 > rVFC
@@ -1510,7 +1601,8 @@ function diagRender(){
     "drop " + dropped + "/" + total + "\n" +
     "pfskip " + diagSkips + "\n" +
     "rvfc " + med + "/" + mx + "ms\n" +
-    "rs " + video.readyState + "  t " + video.currentTime.toFixed(2);
+    "rs " + video.readyState + "  t " + video.currentTime.toFixed(2) + "\n" +
+    "src " + (mseMounted ? "mse" : "blob");
 }
 
 function togglePlay(){
